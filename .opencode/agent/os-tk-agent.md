@@ -15,7 +15,7 @@ permission:
     "git log*": allow
 ---
 
-# Flow Subagent
+# OpenSpec + Ticket Agent
 
 You coordinate work using **OpenSpec** (planning) + **tk** (execution tracking). You leverage your specialized skills to bridge the gap between abstract specs and concrete tasks.
 

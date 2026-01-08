@@ -20,3 +20,4 @@ You are an expert in tracking and managing task execution using the `tk` CLI. Yo
 2. **Acceptance Criteria:** Every ticket should have measurable "done" criteria using the `--acceptance` flag.
 3. **Communication:** Use `tk add-note` to capture implementation details, test results, and blockers.
 4. **Bootstrapping:** Use `/tk-bootstrap` to generate the initial execution graph from a spec.
+5. **Starting Work:** Use `/tk-start` to begin a ticket — it shows context, acceptance criteria, and suggests an implementation plan.

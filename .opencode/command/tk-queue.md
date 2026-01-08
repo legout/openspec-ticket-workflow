@@ -1,6 +1,6 @@
 ---
 description: Show tk ready/blocked and pick next work item
-agent: flow
+agent: os-tk-agent
 subtask: true
 ---
 

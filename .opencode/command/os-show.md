@@ -1,6 +1,6 @@
 ---
 description: Show and sanity-check an OpenSpec change
-agent: flow
+agent: os-tk-agent
 subtask: true
 ---
 

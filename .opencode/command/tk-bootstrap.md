@@ -1,6 +1,6 @@
 ---
 description: Create tk epic + 3–8 chunky task tickets for an OpenSpec change
-agent: flow
+agent: os-tk-agent
 subtask: true
 permission:
   skill: allow

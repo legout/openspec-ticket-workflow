@@ -8,12 +8,13 @@ REPO_URL="https://raw.githubusercontent.com/legout/openspec-ticket-opencode-star
 
 # Files to install
 OPENCODE_FILES=(
-  ".opencode/agent/flow.md"
+  ".opencode/agent/os-tk-agent.md"
   ".opencode/command/os-show.md"
   ".opencode/command/os-status.md"
   ".opencode/command/tk-bootstrap.md"
   ".opencode/command/tk-close-and-sync.md"
   ".opencode/command/tk-queue.md"
+  ".opencode/command/tk-start.md"
   ".opencode/skill/openspec/SKILL.md"
   ".opencode/skill/ticket/SKILL.md"
 )

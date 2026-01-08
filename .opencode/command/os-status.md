@@ -1,6 +1,6 @@
 ---
 description: Show active OpenSpec changes and next step
-agent: flow
+agent: os-tk-agent
 subtask: true
 ---
 

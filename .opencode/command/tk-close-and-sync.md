@@ -1,6 +1,6 @@
 ---
 description: Close a tk ticket and sync progress back to OpenSpec tasks
-agent: flow
+agent: os-tk-agent
 subtask: true
 ---
 
