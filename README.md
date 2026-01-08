@@ -24,8 +24,25 @@ This repo is meant to be copied into an existing project (or used as a template)
 
 ## Installation
 
-### 1) Install the workflow files
+### 1) Prerequisites
+The workflow requires these CLI tools:
 
+- **OpenSpec** (spec-driven changes):
+  ```bash
+  npm install -g @fission-ai/openspec@latest
+  openspec init  # run in your project
+  ```
+- **ticket (`tk`)** (git-backed task tracking):
+  ```bash
+  brew tap wedow/tools
+  brew install ticket
+  ```
+- **jq** (optional, for `tk query`):
+  ```bash
+  brew install jq
+  ```
+
+### 2) Install Workflow Files
 Run this one-liner in your project root:
 
 ```bash
@@ -33,179 +50,86 @@ curl -sSL https://raw.githubusercontent.com/legout/openspec-ticket-opencode-star
 ```
 
 This will:
-- Create `.opencode/agent/` and `.opencode/command/` directories with all workflow files
-- **Append** to your existing `AGENTS.md` if one exists (preserving your current content), or create a new one if not
+- Create `.opencode/agent/` and `.opencode/command/` directories.
+- **Append** to your existing `AGENTS.md` (or create a new one).
 
-After installation, commit the files:
-
+### 3) Commit changes
 ```bash
 git add AGENTS.md .opencode
 git commit -m "Add OpenSpec + ticket + OpenCode workflow"
 ```
 
-### 2) Install prerequisites (if not already installed)
+---
 
-The workflow requires these CLI tools:
+## Daily Workflow
 
-**OpenSpec** (spec-driven changes):
-```bash
-npm install -g @fission-ai/openspec@latest
-openspec init  # run in your project
-```
+### Phase 1: Spec Planning (OpenSpec)
+1. **Propose:** `/openspec-proposal <id>` (Define requirements and design).
+2. **Review:** Ensure the proposal in `openspec/changes/<id>/` is complete.
 
-**ticket (`tk`)** (git-backed task tracking):
-```bash
-brew tap wedow/tools
-brew install ticket
-```
+### Phase 2: Setup Execution (ticket)
+1. **Bootstrap:** `/tk-bootstrap <id> "<epic title>"` (Converts the OpenSpec proposal into actionable `tk` tickets).
+2. **Execute:** Loop through `tk ready`:
+   - `tk start <id>`
+   - Work + Test
+   - `/tk-close-and-sync <tk-id> <os-id>` (Closes ticket and checks off OpenSpec task boxes).
 
-**jq** (optional, for `tk query`):
-```bash
-brew install jq  # or: apt install jq
-```
+### Phase 3: Archive
+1. **Archive:** Once all tickets are closed, `openspec archive <id> --yes`.
 
 ---
 
-## Why “3–8 chunky tickets” (recommended default)
+## Workflow Example: "Add Search"
 
-Instead of creating one ticket per checkbox, this workflow uses **3–8 deliverable-sized tickets per OpenSpec change**.
+Here is how you would implement a new search feature using this kit:
 
-Benefits:
-- Keeps `tk ready` meaningful (no ticket spam)
-- Low admin overhead for humans and agents
-- More resilient when implementation details change mid-flight
+1. **Define the Specs:**
+   - In OpenCode: `/openspec-proposal search-feature`
+   - Agent writes the PRD and Acceptance Criteria in `openspec/changes/search-feature/`.
+   - You review the docs.
 
-Fine-grained checklists still live in **OpenSpec** (and optionally inside each ticket body).
+2. **Bootstrap the Tasks:**
+   - In OpenCode: `/tk-bootstrap search-feature "Implement site-wide search"`
+   - OpenCode reads the OpenSpec files and proposes a set of chunky tickets (e.g., `DB Schema`, `API Endpoint`, `UI Component`).
+   - Run the generated `tk create` commands.
 
----
+3. **Fly through the Queue:**
+   - You (or the agent) run `/tk-queue` to see what's next.
+   - Run `tk start 123` (the API ticket).
+   - Once finished, run `/tk-close-and-sync 123 search-feature`. OpenCode prompts you to check off "Implement API" in the OpenSpec file.
 
-## Prerequisites
-
-### 1) Install OpenSpec
-If you install via npm:
-
-```bash
-npm install -g @fission-ai/openspec@latest
-```
-
-Then initialize in your project and select **OpenCode** integration when prompted:
-
-```bash
-openspec init
-```
-
-### 2) Install ticket (`tk`)
-If you use Homebrew:
-
-```bash
-brew tap wedow/tools
-brew install ticket
-```
-
-(Or install via your preferred method. Ensure `tk` is on PATH.)
-
-Optional (for `tk query`):
-- `jq` installed
+4. **Archive:**
+   - All tickets closed? Run `openspec archive search-feature --yes`.
 
 ---
 
-## Quick start (in your project)
+## Why “3–8 chunky tickets”?
 
-1) Run the installation script (see [Installation](#installation) above)
-
-2) Commit your changes:
-
-```bash
-git add AGENTS.md .opencode
-git commit -m "Add OpenSpec + ticket + OpenCode workflow"
-```
-
-3) In OpenCode, start using the commands below.
+This workflow favors **3–8 deliverable-sized tickets** over fine-grained checkboxes.
+- **Better for Context:** Agents focus on one "chunk" (e.g., "Implement Auth API") rather than 10 tiny tasks.
+- **Cleaner Backlog:** `tk ready` stays readable for humans.
+- **Flexibility:** Implementation details can evolve within a chunky ticket without needing constant re-ticketing.
 
 ---
 
-## Daily workflow
+## OpenCode Commands
 
-### Step A — Define the change in OpenSpec
-
-In OpenCode:
-
-- `/openspec-proposal <change-id>`
-
-Refine the proposal + acceptance criteria, then (optionally):
-
-- `openspec validate <change-id>`
-- `openspec show <change-id>`
-
-When ready to implement:
-
-- `/openspec-apply <change-id>`
-
-### Step B — Create a ticket epic + chunky tasks
-
-Create a tk epic and 3–8 deliverable-sized tasks (DB/API/UI/tests/docs, etc).
-
-In OpenCode, run:
-
-- `/tk-bootstrap <change-id> "<epic title>"`
-
-This command prints the exact `tk create ...` commands to run (and any `tk dep` links).
-
-### Step C — Execute from `tk ready`
-
-Loop:
-
-```bash
-tk ready
-tk show <id>
-tk start <id>
-# implement + test
-tk add-note <id> "what changed, files, tests"
-tk close <id>
-```
-
-Then sync OpenSpec checkboxes:
-
-- `/tk-close-and-sync <ticket-id> <change-id>`
-
-### Step D — Archive the change
-
-When the epic is done:
-
-```bash
-openspec archive <change-id> --yes
-```
+| Command | Description |
+| :--- | :--- |
+| `/os-status` | Show active OpenSpec changes and next steps. |
+| `/os-show <id>` | Show change details and suggest ticket chunks. |
+| `/tk-queue` | Show `tk ready/blocked` and the best next task. |
+| `/tk-bootstrap <id> "<title>"` | Generate `tk create` commands for an epic + tasks. |
+| `/tk-close-and-sync <tk-id> <os-id>` | Add notes, close ticket, and sync OpenSpec progress. |
 
 ---
 
-## OpenCode commands included
+## Using with any Agent (Non-OpenCode)
 
-### `/os-status`
-Shows active OpenSpec changes and recommends next action.
-
-### `/os-show <change-id>`
-Shows a change and suggests 3–8 deliverable chunks for ticketing.
-
-### `/tk-queue`
-Shows `tk ready` and `tk blocked`, then suggests the single best next task.
-
-### `/tk-bootstrap <change-id> "<epic title>"`
-Bootstraps the execution graph: epic + 3–8 tasks + dependencies (commands printed in order).
-
-### `/tk-close-and-sync <ticket-id> <change-id>`
-Prompts for a good `tk add-note`, suggests closing the ticket, and tells you which OpenSpec checkboxes to tick.
-
----
-
-## Using this workflow without OpenCode (any agent)
-
-Even without OpenCode, agents can follow `AGENTS.md`:
-
-1) Use OpenSpec as the “source of truth” for the change
-2) Create a tk epic with `--external-ref "openspec:<change-id>"`
-3) Create 3–8 chunky tasks under that epic
-4) Pick work from `tk ready`
-5) Keep OpenSpec tasks checked off and archive at the end
+Even without OpenCode, any agent can follow `AGENTS.md` by:
+1. Using OpenSpec for high-level requirements.
+2. Creating a `tk` epic with `--external-ref "openspec:<id>"`.
+3. Executing tasks from `tk ready`.
 
 ---
 
@@ -220,32 +144,12 @@ Even without OpenCode, agents can follow `AGENTS.md`:
 
 ## Troubleshooting
 
-### `tk query` doesn’t work
-Install `jq` and ensure it’s on PATH.
-
-### OpenCode commands can’t run shell commands
-Some OpenCode setups require explicit permission for `bash`.  
-The included `flow` subagent is configured to allow `openspec *` and `tk *`, but may still prompt depending on your OpenCode security settings.
-
-### Nothing shows in `tk ready`
-Check:
-- Are tasks closed?
-- Are tasks blocked by dependencies?
-- Run `tk blocked` to see what’s waiting.
+- **`tk query` fails:** Ensure `jq` is installed.
+- **Permissions:** Some setups require explicit `bash` permission for OpenCode commands.
+- **Empty Queue:** Check `tk blocked` to see if dependencies are holding up work.
 
 ---
 
-## License
+## License & Credits
 
-MIT. See `LICENSE`.
-
----
-
-## Credits
-
-This starter kit is an integration pattern for:
-- OpenSpec
-- ticket (`tk`)
-- OpenCode
-
-Upstream projects are owned by their respective authors.
+MIT. Integration pattern for [OpenSpec](https://github.com/fission-ai/openspec), [ticket](https://github.com/wedow/ticket), and [OpenCode](https://opencode.dev).
