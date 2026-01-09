@@ -1,23 +1,16 @@
 ---
 description: Start multiple tickets in parallel as background tasks [ultrahardwork]
-sisyphus: true
 agent: os-tk-agent
-subtask: false
 ---
 
 **Ticket IDs:** $ARGUMENTS
 
 For EACH ticket ID provided in `$ARGUMENTS`:
-1. Run `tk start <id>` to mark it as in-progress.
-2. Spawn a background implementation task that:
-   - Shows ticket details via `tk show <id>`
-   - Creates and executes an implementation plan
-   - Runs tests and validates
-   - Notifies the user when complete
+- Call the `/tk-start` slash command: `/tk-start <id>`
 
-**Important:** Each ticket implementation should run as a separate background task so they can proceed in parallel.
+**Important:** Each `/tk-start` call will automatically spawn a background task handled by the `os-tk-agent`.
 
-After spawning all tasks, confirm to the user:
-> "Started <N> tickets in parallel: <id1>, <id2>, ... You'll be notified as each completes."
+After initiating all tasks, confirm to the user:
+> "Started <N> tickets in parallel: <id1>, <id2>, ... Each is running as a background task via `os-tk-agent`."
 
 <!-- ultrahardwork -->
