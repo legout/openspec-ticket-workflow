@@ -45,11 +45,10 @@ This repo uses:
 Identify/create OpenSpec proposal → review/validate → bootstrap tk epic + 3–8 task tickets → loop: `tk ready` → `tk start` → implement → `tk close` → update OpenSpec tasks → all tickets done? → `openspec archive --yes`.
 ## oh-my-opencode Integration (Sisyphus)
 
-If you have `oh-my-opencode` installed, you can use the **Sisyphus** engineering manager to orchestrate this workflow.
+If you have `oh-my-opencode` installed, the **Sisyphus** engineering manager will orchestrate this workflow automatically.
 
-1. **Invoke Sisyphus:** Run `/Sisyphus` to start the manager.
-2. **Persistence:** Sisyphus will monitor the `tk` queue and OpenSpec status.
-3. **Delegation:** It will automatically delegate chunky implementation tasks to the `os-tk-agent`.
-4. **Parallelism:** Sisyphus will attempt to run multiple ready tickets in parallel where possible.
+1. **Automatic Persistence:** Sisyphus will monitor the `tk` queue and OpenSpec status.
+2. **Delegation:** It will automatically delegate chunky implementation tasks to the `os-tk-agent`.
+3. **Parallelism:** Sisyphus will attempt to run multiple ready tickets in parallel where possible.
 
-Commands in this workflow are marked with `sisyphus: true`, signaling to the orchestrator that they are part of the managed engineering flow.
+Commands in this workflow are marked with `sisyphus: true` and `[ultrahardwork]`, signaling to the orchestrator that they are part of the managed engineering flow.

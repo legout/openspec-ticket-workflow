@@ -14,7 +14,6 @@ This repo is meant to be copied into an existing project (or used as a template)
 
 - `AGENTS.md` — tool-agnostic rules any agent can follow.
 - `.opencode/agent/os-tk-agent.md` — a “workflow orchestrator” subagent.
-- `.opencode/agent/Sisyphus.md` — an **Engineering Manager** (Sisyphus) for `oh-my-opencode`.
 - `.opencode/skill/` — **modular expert knowledge** (OpenSpec & ticket) for better agent performance.
 - `.opencode/command/*` — specialized slash commands to:
   - list/show OpenSpec changes
@@ -234,16 +233,14 @@ This workflow favors **3–8 deliverable-sized tickets** over fine-grained check
 | `/tk-start-multi <id1> <id2> ...` | Start multiple tickets in parallel as background tasks. |
 | `/tk-bootstrap <id> "<title>"` | Generate `tk create` commands for an epic + tasks. |
 | `/tk-close-and-sync <tk-id> <os-id>` | Add notes, close ticket, and sync OpenSpec progress. |
-| `/Sisyphus` | Start the **Engineering Manager** to orchestrate the entire workflow. |
 
 ---
 
 ### Using with oh-my-opencode (Sisyphus)
 
-If you have `oh-my-opencode` installed, you can leverage the **Sisyphus** orchestrator to manage the entire workflow:
-1. Run `/Sisyphus` to start the manager.
-2. **Automatic Triggering:** Key commands like `/os-proposal`, `/tk-bootstrap`, `/tk-queue`, and `/tk-start` include `[ultrahardwork]` in their header and body, which automatically triggers Sisyphus orchestration.
-3. Sisyphus will monitor the `tk` queue and OpenSpec tasks, delegating "chunky" implementation tasks to the `os-tk-agent` in parallel.
+If you have `oh-my-opencode` installed, the **Sisyphus** orchestrator can manage the entire workflow:
+1. **Automatic Triggering:** Key commands like `/os-proposal`, `/tk-bootstrap`, `/tk-queue`, and `/tk-start` include `[ultrahardwork]` in their header and body, which automatically triggers Sisyphus orchestration.
+2. Sisyphus will monitor the `tk` queue and OpenSpec tasks, delegating "chunky" implementation tasks to the `os-tk-agent` in parallel.
 
 ### Using with any Agent (Non-OpenCode)
 1. Using OpenSpec for high-level requirements.

@@ -9,7 +9,6 @@ REPO_URL="https://raw.githubusercontent.com/legout/openspec-ticket-opencode-star
 # Files to install
 OPENCODE_FILES=(
   ".opencode/agent/os-tk-agent.md"
-  ".opencode/agent/Sisyphus.md"
   ".opencode/command/os-proposal.md"
   ".opencode/command/os-show.md"
   ".opencode/command/os-status.md"
