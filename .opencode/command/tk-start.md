@@ -3,6 +3,7 @@ description: Start a tk ticket and implement it (runs in background for parallel
 agent: os-tk-agent
 subtask: true
 background: true
+sisyphus: true
 ---
 
 Ticket: $ARGUMENTS

@@ -1,5 +1,7 @@
+```
 ---
 description: Show active OpenSpec changes and next step
+sisyphus: true
 agent: os-tk-agent
 subtask: true
 ---

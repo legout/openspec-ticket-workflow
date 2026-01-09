@@ -1,5 +1,6 @@
 ---
-description: Start multiple tk tickets in parallel (each runs as background task)
+description: Start multiple tickets in parallel as background tasks
+sisyphus: true
 agent: os-tk-agent
 subtask: false
 ---

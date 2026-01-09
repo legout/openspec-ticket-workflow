@@ -9,6 +9,7 @@ REPO_URL="https://raw.githubusercontent.com/legout/openspec-ticket-opencode-star
 # Files to install
 OPENCODE_FILES=(
   ".opencode/agent/os-tk-agent.md"
+  ".opencode/agent/Sisyphus.md"
   ".opencode/command/os-show.md"
   ".opencode/command/os-status.md"
   ".opencode/command/tk-bootstrap.md"
@@ -58,6 +59,9 @@ echo "     (or see: https://github.com/wedow/ticket)"
 echo ""
 echo "  3. jq (optional, for 'tk query')"
 echo "     brew install jq  # or: apt install jq"
+echo ""
+echo "  4. oh-my-opencode (optional, for orchestration)"
+echo "     Prompt OpenCode: \"Install and configure oh-my-opencode\""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "NEXT STEPS:"

@@ -1,5 +1,6 @@
 ---
-description: Show and sanity-check an OpenSpec change
+description: Show details of an OpenSpec change and suggest ticket chunks
+sisyphus: true
 agent: os-tk-agent
 subtask: true
 ---
