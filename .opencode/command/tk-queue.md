@@ -1,7 +1,7 @@
 ---
-description: Show tk ready/blocked and pick next work item
+description: Show tk ready/blocked and suggest next work item (does NOT start work)
 agent: os-tk-agent
-subtask: true
+subtask: false
 ---
 
 Ready:
@@ -11,8 +11,13 @@ Blocked:
 !`tk blocked`
 
 Pick ONE ready ticket to do next (or the smallest unblock step if none are ready).
-Output:
+
+**Output:**
 - ticket id
-- why it’s next
-- 5–10 line implementation plan
-- suggested `tk start <id>` command
+- title & brief summary
+- why it's the best next choice
+
+**Important:** Do NOT start implementation. Do NOT provide an implementation plan.
+
+End your response by asking the user:
+> Would you like me to run `/tk-start <ticket-id>` to begin work on this ticket?
