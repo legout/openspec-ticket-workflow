@@ -70,7 +70,7 @@ git commit -m "Add OpenSpec + ticket + OpenCode workflow"
 |      PLANNING       | ----> |         EXECUTION         | ----> |       ARCHIVE       |
 +---------------------+       +---------------------------+       +---------------------+
            |                                |                                |
- 1. /openspec-proposal            2. /tk-bootstrap                       |
+ 1. /os-proposal                 2. /tk-bootstrap                       |
            |                                |                                |
            v                                v                                |
       [spec files]                   [epic + tasks]                      |
@@ -98,8 +98,8 @@ Define what you want to build.
 
 ```bash
 # 1. Create a new proposal
-/openspec-proposal <change-id>
-# Example: /openspec-proposal search-feature
+/os-proposal <change-id>
+# Example: /os-proposal search-feature
 ```
 
 ### Phase 2: Execution
@@ -156,7 +156,7 @@ Here's a concrete example implementing a "site-wide search" feature.
 ║                          EXAMPLE: "Add Search"                                 ║
 ╠════════════════════════════════════════════════════════════════════════════════╣
 ║                                                                                ║
-║  1. /openspec-proposal search-feature                                          ║
+║  1. /os-proposal search-feature                                          ║
 ║     └─▶ Agent creates openspec/changes/search-feature/{proposal,design,tasks}  ║
 ║                                                                                ║
 ║  2. /tk-bootstrap search-feature "Implement site-wide search"                  ║
@@ -179,7 +179,7 @@ Here's a concrete example implementing a "site-wide search" feature.
 
 **Step 1: Define the Specs**
 ```bash
-/openspec-proposal search-feature
+/os-proposal search-feature
 ```
 The agent creates `openspec/changes/search-feature/` with all required files.
 
@@ -228,6 +228,7 @@ This workflow favors **3–8 deliverable-sized tickets** over fine-grained check
 | :--- | :--- |
 | `/os-status` | Show active OpenSpec changes and next steps. |
 | `/os-show <id>` | Show change details and suggest ticket chunks. |
+| `/os-proposal <id>` | Create a new OpenSpec proposal. |
 | `/tk-queue [next\|all]` | Show `tk ready/blocked`. Use `next` (default) for one task, `all` for parallel work. |
 | `/tk-start <id>` | Start a ticket in the background (allows parallel implementation). |
 | `/tk-start-multi <id1> <id2> ...` | Start multiple tickets in parallel as background tasks. |
@@ -241,7 +242,7 @@ This workflow favors **3–8 deliverable-sized tickets** over fine-grained check
 
 If you have `oh-my-opencode` installed, you can leverage the **Sisyphus** orchestrator to manage the entire workflow:
 1. Run `/Sisyphus` to start the manager.
-2. **Automatic Triggering:** Key commands like `/tk-bootstrap`, `/tk-queue`, and `/tk-start` include `[ultrahardwork]` in their header and body, which automatically triggers Sisyphus orchestration.
+2. **Automatic Triggering:** Key commands like `/os-proposal`, `/tk-bootstrap`, `/tk-queue`, and `/tk-start` include `[ultrahardwork]` in their header and body, which automatically triggers Sisyphus orchestration.
 3. Sisyphus will monitor the `tk` queue and OpenSpec tasks, delegating "chunky" implementation tasks to the `os-tk-agent` in parallel.
 
 ### Using with any Agent (Non-OpenCode)

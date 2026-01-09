@@ -1,21 +1,17 @@
 ---
-description: Close a tk ticket and sync progress back to OpenSpec tasks
+description: Close a tk ticket and sync progress back to OpenSpec tasks [ultrahardwork]
 sisyphus: true
 agent: os-tk-agent
 subtask: true
 ---
 
 Ticket: $1
-OpenSpec change: $2
-
-Show ticket:
-!`tk show $1`
-
-Show OpenSpec:
-!`openspec show $2`
+OpenSpec ID: $2
 
 Now:
-1) Propose the exact `tk add-note $1` text summarizing what changed (files, tests run, behavior).
-2) Propose `tk close $1`.
-3) Tell me which OpenSpec checkboxes in tasks.md should be checked off (by section/line reference).
-4) Recommend the next `tk ready` ticket.
+1) Add a summary note to the ticket: `tk add-note $1 "Implemented: <summary>"`
+2) Close the ticket: `tk close $1`
+3) Update `openspec/changes/$2/tasks.md` and check off the completed work.
+4) If all tickets are done, suggest: `openspec archive $2`
+
+<!-- ultrahardwork -->
