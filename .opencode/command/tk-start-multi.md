@@ -1,6 +1,5 @@
 ---
 description: Start multiple tk tickets in parallel (wait and summarize) [ultrahardwork]
-agent: os-tk-agent
 ---
 
 Ticket IDs: $ARGUMENTS
