@@ -10,7 +10,8 @@ You are the **Backlog Refactorer**. Your job is to analyze the entire tk backlog
 
 ## Step 1: Scan the backlog
 Get all open tickets across all epics:
-!`tk query --status open`
+!`tk query '.status == "open"'`
+> Note: Use `tk query` without any filter to get all tickets.
 
 ## Step 2: Identify issues
 Analyze the tickets for these problems:

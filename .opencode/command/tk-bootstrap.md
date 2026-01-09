@@ -14,7 +14,8 @@ Show the change:
 !`openspec show $1`
 
 Scan existing open tickets to avoid duplication:
-!`tk query --status open`
+!`tk query '.status == "open"'`
+> Note: Use `tk query` without any filter to get all tickets.
 
 Create a tk epic and 3–8 task tickets under it.
 
