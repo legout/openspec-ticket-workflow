@@ -7,8 +7,6 @@ background: true
 
 Ticket IDs: $ARGUMENTS
 
-You MUST process these tickets in parallel as independent workers.
-
 **Parsing:**
 - Extract ticket IDs from `$ARGUMENTS`.
 - If `$ARGUMENTS` ends with `--parallel N`, set concurrency limit to N (otherwise default to 3).
@@ -17,12 +15,18 @@ You MUST process these tickets in parallel as independent workers.
 - Run !`tk ready` to get the list of ready tickets.
 - Keep only ticket IDs that appear in the ready list. Skip any IDs not in ready and report them skipped.
 
-**Parallel execution:**
-- For each ready ticket, launch ONE independent worker (parallel subtask).
-- Process workers in batches of at most the concurrency limit (3 by default).
-- Each worker must perform the following workflow for its ticket <id>:
+**Launch parallel workers:**
+You MUST use the `task` tool to spawn one independent `os-tk-agent` subtask per ticket ID. Do NOT execute the workflow yourself; delegate to parallel subtasks.
 
-### Worker Workflow for Ticket <id>:
+For each ready ticket ID, create a task with:
+- `subagent_type`: os-tk-agent
+- `description`: Implement ticket <id>
+- `prompt`: Execute the full workflow for ticket <id>:
+
+```
+Ticket: <id>
+
+Execute the full implementation workflow for this ticket:
 1. **Initialize:** Run `tk start <id>` to mark it as in-progress.
 2. **Context:** Show the ticket details: !`tk show <id>`
 3. **Analysis:** Summarize the acceptance criteria and key deliverables for this ticket.
@@ -30,8 +34,13 @@ You MUST process these tickets in parallel as independent workers.
 5. **Verification:** Run all relevant tests and validate the implementation.
 6. **Completion:** Confirm the ticket is fully implemented.
 
+When complete, report a brief summary including the ticket ID and outcome (success/failure).
+```
+
+Launch tasks in batches of at most the concurrency limit (default: 3). Launch the next batch only after the current batch completes.
+
 **Wait and summarize:**
-- Wait for all workers to complete.
+- Wait for all tasks to complete.
 - Report a concise summary:
   - Number of tickets started/implemented/failed
   - Per-ticket outcome (ID: success/failure + brief note)
