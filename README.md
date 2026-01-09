@@ -241,7 +241,7 @@ This workflow favors **3–8 deliverable-sized tickets** over fine-grained check
 
 If you have `oh-my-opencode` installed, you can leverage the **Sisyphus** orchestrator to manage the entire workflow:
 1. Run `/Sisyphus` to start the manager.
-2. **Automatic Triggering:** Key commands like `/tk-bootstrap`, `/tk-queue`, and `/tk-start` include `[ultrahardwork]` (or `ulw`) keywords, which automatically trigger Sisyphus orchestration even without the slash command.
+2. **Automatic Triggering:** Key commands like `/tk-bootstrap`, `/tk-queue`, and `/tk-start` include `[ultrahardwork]` in their header and body, which automatically triggers Sisyphus orchestration.
 3. Sisyphus will monitor the `tk` queue and OpenSpec tasks, delegating "chunky" implementation tasks to the `os-tk-agent` in parallel.
 
 ### Using with any Agent (Non-OpenCode)

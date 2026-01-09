@@ -1,5 +1,5 @@
 ---
-description: Start multiple tickets in parallel as background tasks [ultrahardwork] (ulw)
+description: Start multiple tickets in parallel as background tasks [ultrahardwork]
 sisyphus: true
 agent: os-tk-agent
 subtask: false
@@ -19,3 +19,5 @@ For EACH ticket ID provided in `$ARGUMENTS`:
 
 After spawning all tasks, confirm to the user:
 > "Started <N> tickets in parallel: <id1>, <id2>, ... You'll be notified as each completes."
+
+<!-- ultrahardwork -->

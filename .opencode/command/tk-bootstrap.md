@@ -1,5 +1,5 @@
 ---
-description: Create tk epic + 3–8 chunky task tickets for an OpenSpec change [ultrahardwork] (ulw)
+description: Create tk epic + 3–8 chunky task tickets for an OpenSpec change [ultrahardwork]
 sisyphus: true
 agent: os-tk-agent
 subtask: true
@@ -29,3 +29,5 @@ Output EXACT commands in order:
 2) 3–8x `tk create ...` tasks
 3) `tk dep ...` lines (if needed)
 4) What should appear in `tk ready` afterward
+
+<!-- ultrahardwork -->
