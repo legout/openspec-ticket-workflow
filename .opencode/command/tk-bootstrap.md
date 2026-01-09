@@ -1,7 +1,6 @@
 ---
-description: Create tk epic + 3–8 chunky task tickets for an OpenSpec change
+description: Create tk epic + 3–8 chunky task tickets for an OpenSpec change [ultrahardwork]
 sisyphus: true
----
 agent: os-tk-agent
 subtask: true
 permission:
