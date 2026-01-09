@@ -1,5 +1,5 @@
 ---
-description: Start multiple tickets in parallel as background tasks [ultrahardwork]
+description: Start multiple tickets in parallel as background tasks [ultrahardwork] (ulw)
 sisyphus: true
 agent: os-tk-agent
 subtask: false

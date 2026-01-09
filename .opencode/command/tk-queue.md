@@ -1,5 +1,5 @@
 ---
-description: Show tk ready/blocked and suggest next work item(s) (does NOT start work) [ultrahardwork]
+description: Show tk ready/blocked and suggest next work item(s) (does NOT start work) [ultrahardwork] (ulw)
 sisyphus: true
 agent: os-tk-agent
 subtask: false
