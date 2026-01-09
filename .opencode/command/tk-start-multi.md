@@ -1,6 +1,7 @@
 ---
 description: Start multiple tickets in parallel as background tasks [ultrahardwork]
 agent: os-tk-agent
+subtask: false
 ---
 
 **Ticket IDs:** $ARGUMENTS
