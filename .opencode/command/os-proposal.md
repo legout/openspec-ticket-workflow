@@ -1,6 +1,6 @@
 ---
 description: Create a new OpenSpec proposal for a feature or bugfix [ulw]
-agent: os-tk-agent
+agent: os-tk-worker
 ---
 
 Change ID: $1

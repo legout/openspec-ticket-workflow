@@ -14,6 +14,13 @@
 
 set -euo pipefail
 
+# Fix 9: Check for jq dependency
+if ! command -v jq &>/dev/null; then
+  echo "Error: 'jq' is required but not installed."
+  echo "Install with: apt install jq / brew install jq"
+  exit 1
+fi
+
 CONFIG_FILE="os-tk.config.json"
 OPENCODE_AGENT_DIR=".opencode/agent"
 PLANNER_AGENT="$OPENCODE_AGENT_DIR/os-tk-planner.md"
@@ -23,8 +30,8 @@ usage() {
   echo "Usage: $0 [command] [options]"
   echo ""
   echo "Commands:"
-  echo "  init [worktree|simple]    Initialize os-tk config and apply to agents"
-  echo "  apply                     Re-apply config to agents (useful after manual edits)"
+  echo "  init [--worktree|--simple]  Initialize os-tk config and apply to agents"
+  echo "  apply                       Re-apply config to agents (useful after manual edits)"
   echo ""
   echo "Options for 'init':"
   echo "  --worktree   Enable worktree mode (safe parallel, default)"
@@ -61,27 +68,39 @@ default_config() {
 JSON
 }
 
+# Fix 1, 4, 8: Rewritten to properly expand variables and apply config
 rebuild_agent_from_template() {
   local agent_file="$1"
   local role="$2"
   local model="$3"
+  local temperature="$4"
   
-  cat > "$agent_file" << "AGENT"
+  # Fix 4: Different permissions for planner (view-only) vs worker (execution)
+  local edit_perm="allow"
+  local write_perm="allow"
+  if [[ "$role" == "planner" ]]; then
+    edit_perm="deny"
+    write_perm="deny"
+  fi
+  
+  # Fix 1 & 8: Use unquoted heredoc for variable expansion, include model and temperature
+  cat > "$agent_file" << AGENT
 ---
-name: os-tk-$role
-description: OpenSpec + ticket $role (view-only vs execution)
+name: os-tk-${role}
+description: OpenSpec + ticket ${role} (view-only vs execution)
+model: ${model}
 mode: subagent
-temperature: 0.2
+temperature: ${temperature}
 permission:
   bash: allow
   skill: allow
-  edit: allow
-  write: allow
+  edit: ${edit_perm}
+  write: ${write_perm}
 ---
 
-# OpenSpec + Ticket $role
+# OpenSpec + Ticket ${role}
 
-You implement the $role phase of the workflow.
+You implement the ${role} phase of the workflow.
 
 AGENT
 
@@ -99,7 +118,7 @@ You coordinate **planning and review** phases of the workflow. You **NEVER imple
 
 ## Command Precedence
 
-When invoked via a command (e.g., \`/os-change\`, \`/tk-queue\`):
+When invoked via a command (e.g., `/os-change`, `/tk-queue`):
 - The command markdown file is the HIGHEST PRIORITY contract.
 - If any conflict between this description, skills, or general rules and the command's contract:
   - **The command contract wins. Always.**
@@ -110,12 +129,12 @@ When invoked via a command (e.g., \`/os-change\`, \`/tk-queue\`):
 For view-only commands, these actions are **FORBIDDEN**:
 
 ### ALLOWED
-- \`openspec list\`, \`openspec show <id>\`, \`openspec validate <id>\`
-- \`tk ready\`, \`tk blocked\`, \`tk show <id>\`, \`tk query <filter>\`
+- `openspec list`, `openspec show <id>`, `openspec validate <id>`
+- `tk ready`, `tk blocked`, `tk show <id>`, `tk query <filter>`
 - Summarize, analyze, and recommend
 
 ### FORBIDDEN
-- \`tk start\`, \`tk close\`, \`tk add-note\`, or any mutating \`tk\` command
+- `tk start`, `tk close`, `tk add-note`, or any mutating `tk` command
 - Edit files, write code, run tests, or implement plans
 - Any bash commands that modify state
 
@@ -123,15 +142,15 @@ For view-only commands, these actions are **FORBIDDEN**:
 
 Before responding to a view-only command, confirm you did NOT:
 - [ ] Suggest any implementation plan or coding steps
-- [ ] Propose running \`tk start\`, \`tk add-note\`, or \`tk close\`
+- [ ] Propose running `tk start`, `tk add-note`, or `tk close`
 - [ ] Edit or propose edits to any files
 
-If you did any of the above, remove it and redirect to \`/tk-start\`.
+If you did any of the above, remove it and redirect to `/tk-start`.
 
 ## Worktree Awareness
 
-- \`tk-queue\` must exclude active worktrees (\`.worktrees/<id>/\`) from "ready to start".
-- When \`useWorktrees\` is false, there are no worktrees; all "ready" tickets are eligible.
+- `tk-queue` must exclude active worktrees (`.worktrees/<id>/`) from "ready to start".
+- When `useWorktrees` is false, there are no worktrees; all "ready" tickets are eligible.
 AGENT
 
   elif [[ "$role" == "worker" ]]; then
@@ -143,36 +162,36 @@ You implement **ticket deliverables and acceptance criteria** within isolated co
 
 - Implement exactly one ticket per invocation.
 - Run tests to validate implementation.
-- Do NOT close tickets (that is \`/tk-done\`'s job).
-- Do NOT archive OpenSpec (that is \`/tk-done\`'s job).
-- Do NOT merge branches or push (those are \`/tk-done\`'s job).
-- Edit OpenSpec \`tasks.md\` only as directed by planner/\`/tk-done\` sync.
+- Do NOT close tickets (that is `/tk-done`'s job).
+- Do NOT archive OpenSpec (that is `/tk-done`'s job).
+- Do NOT merge branches or push (those are `/tk-done`'s job).
+- Edit OpenSpec `tasks.md` only as directed by planner/`/tk-done` sync.
 
 ## Allowed Actions
 
 - Edit files, write code, refactor as needed.
 - Run tests and fix failures.
-- Read \`tk show <id>\` for ticket context.
+- Read `tk show <id>` for ticket context.
 
 ## Forbidden Actions
 
-- Closing tickets (\`tk close\`)
+- Closing tickets (`tk close`)
 - Archiving OpenSpec
 - Merging branches or pushing
-- Editing OpenSpec \`tasks.md\` (that is planner/\`/tk-done\`'s sync job)
+- Editing OpenSpec `tasks.md` (that is planner/`/tk-done`'s sync job)
 - Implementing multiple tickets in one flow
 
 ## Worktree Awareness
 
-- When \`useWorktrees\` is true, you operate in an isolated worktree: \`.worktrees/<ticket-id>/\`.
-- When \`useWorktrees\` is false, you operate in the current working tree.
+- When `useWorktrees` is true, you operate in an isolated worktree: `.worktrees/<ticket-id>/`.
+- When `useWorktrees` is false, you operate in the current working tree.
 
 ## Output
 
 When implementation is complete:
 - Summarize what was implemented.
 - List any files created/modified.
-- Explicitly instruct the user to run \`/tk-done <id> [change-id]\`.
+- Explicitly instruct the user to run `/tk-done <id> [change-id]`.
 AGENT
 
   else
@@ -181,21 +200,25 @@ AGENT
   fi
 }
 
+# Fix 6: Use the configured worktree_dir variable instead of hardcoded value
 ensure_gitignore_worktrees() {
   local config="$1"
   local use_worktrees
   use_worktrees=$(echo "$config" | jq -r '.useWorktrees // false')
   
   if [[ "$use_worktrees" == "true" ]]; then
-    local worktree_dir=$(echo "$config" | jq -r '.worktreeDir // ".worktrees"')
-    if ! grep -q "^$worktree_dir$" .gitignore 2>/dev/null; then
-      echo ".worktrees/" >> .gitignore
-      echo "Added .worktrees/ to .gitignore"
+    local worktree_dir
+    worktree_dir=$(echo "$config" | jq -r '.worktreeDir // ".worktrees"')
+    # Ensure directory has trailing slash for gitignore
+    local gitignore_entry="${worktree_dir}/"
+    if ! grep -qF "$gitignore_entry" .gitignore 2>/dev/null; then
+      echo "$gitignore_entry" >> .gitignore
+      echo "Added $gitignore_entry to .gitignore"
     else
-      echo ".worktrees/ already in .gitignore"
+      echo "$gitignore_entry already in .gitignore"
     fi
   else
-    echo "useWorktrees is false; skipping .worktrees/ gitignore"
+    echo "useWorktrees is false; skipping worktree gitignore"
   fi
 }
 
@@ -210,22 +233,53 @@ apply_config_to_agents() {
   
   # Extract planner config
   local planner_model
+  local planner_temp
   planner_model=$(echo "$config" | jq -r '.planner.model // "openai/gpt-5.2"')
+  planner_temp=$(echo "$config" | jq -r '.planner.temperature // 0')
   
   # Extract worker config  
   local worker_model
+  local worker_temp
   worker_model=$(echo "$config" | jq -r '.worker.model // "zai-coding-plan/glm-4.7"')
+  worker_temp=$(echo "$config" | jq -r '.worker.temperature // 0.2')
   
-  # Rebuild agents from templates (model is passed but not currently used in template)
-  rebuild_agent_from_template "$PLANNER_AGENT" "planner" "$planner_model"
-  rebuild_agent_from_template "$WORKER_AGENT" "worker" "$worker_model"
+  # Rebuild agents from templates with model and temperature from config
+  rebuild_agent_from_template "$PLANNER_AGENT" "planner" "$planner_model" "$planner_temp"
+  rebuild_agent_from_template "$WORKER_AGENT" "worker" "$worker_model" "$worker_temp"
   
-  echo "  - Created/updated: $PLANNER_AGENT"
-  echo "  - Created/updated: $WORKER_AGENT"
+  echo "  - Created/updated: $PLANNER_AGENT (model: $planner_model, temp: $planner_temp)"
+  echo "  - Created/updated: $WORKER_AGENT (model: $worker_model, temp: $worker_temp)"
 }
 
+# Fix 10: Proper flag parsing for --worktree and --simple
 cmd_init() {
-  local mode="${1:-worktree}"
+  local mode="worktree"  # default
+  
+  # Parse flags
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --worktree)
+        mode="worktree"
+        shift
+        ;;
+      --simple)
+        mode="simple"
+        shift
+        ;;
+      worktree)
+        mode="worktree"
+        shift
+        ;;
+      simple)
+        mode="simple"
+        shift
+        ;;
+      *)
+        echo "Unknown option: $1"
+        usage
+        ;;
+    esac
+  done
   
   if [[ ! -f "$CONFIG_FILE" ]]; then
     default_config > "$CONFIG_FILE"
@@ -272,10 +326,11 @@ cmd_apply() {
 
 main() {
   local command="${1:-}"
+  shift || true
   
   case "$command" in
     init)
-      cmd_init "${2:-}"
+      cmd_init "$@"
       ;;
     apply)
       cmd_apply

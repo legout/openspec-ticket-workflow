@@ -1,56 +1,108 @@
 ---
-description: Create tk epic + 3–8 chunky task tickets for an OpenSpec change [ultrahardwork]
-agent: os-tk-agent
+description: Create tk epic + 3–8 chunky task tickets for an OpenSpec change [ulw]
+agent: os-tk-worker
 permission:
   skill: allow
+  bash: allow
 ---
 
-# COMMAND CONTRACT (MUST OBEY)
+# /tk-bootstrap <change-id> "<epic-title>"
 
-You are running `/tk-bootstrap`, which is a **VIEW-ONLY** command.
+**Arguments:** $ARGUMENTS
 
-## ALLOWED
-- `tk query`, `openspec list`, `openspec show <id>`, `openspec validate <id>`
-- Summarize, analyze, and recommend
+Parse:
+- `change-id`: first argument (required)
+- `epic-title`: second argument (required, quoted string)
 
-## FORBIDDEN
-- `tk create`, `tk start`, `tk close`, `tk add-note`, `tk dep`, or any other mutating `tk` command
+---
+
+## EXECUTION CONTRACT
+
+This command **EXECUTES** ticket creation. It creates real tk tickets.
+
+### ALLOWED
+- `openspec list`, `openspec show <id>`, `openspec validate <id>`
+- `tk create`, `tk dep`, `tk query`, `tk show`
+- Summarize and recommend next steps
+
+### FORBIDDEN
+- `tk start`, `tk close`, `tk add-note` (those are `/tk-start` and `/tk-done`)
 - Edit files or write code
-- Any bash commands that modify state
-
-## ENFORCEMENT
-If you are about to output `tk create ...` commands:
-1. STOP immediately
-2. Remove all content after the command contract
-3. Only output the exact `tk create ...` commands, nothing else
+- Archive OpenSpec
+- Begin implementation
 
 ---
 
-# COMMAND CONTRACT (MUST OBEY)
+## Step 1: Analyze the OpenSpec change
 
-You are running `/tk-bootstrap`, which is a **VIEW-ONLY** command.
-
-OpenSpec change-id: $1
-Epic title: $2
-
-Use your **openspec** skill to understand the change and your **ticket** skill to design the execution graph.
-
-Show the change:
+Show the change details:
 !`openspec show $1`
 
-Create a tk epic and 3–8 task tickets under it.
+Use your **openspec** skill to understand:
+- The proposal goals and scope
+- The tasks.md deliverables (if exists)
+- Acceptance criteria
+
+## Step 2: Design the ticket structure
+
+Plan 3–8 chunky tickets that cover:
+- Database/model changes
+- API/backend logic
+- UI/frontend components
+- Tests
+- Documentation
+
+Each ticket should be a meaningful deliverable, not a single checkbox.
+
+## Step 3: Create the epic
+
+Run:
+```bash
+tk create --type epic --external-ref "openspec:$1" --title "$2"
+```
+
+**Capture the epic ID** from the output (format: `Created ticket: <id>`).
+
+## Step 4: Create task tickets
+
+For each planned task (3–8 total), run:
+```bash
+tk create --type task --parent <epic-id> --title "<task title>" --acceptance "<measurable done criteria>"
+```
 
 Requirements:
-- Epic must use: `--type epic --external-ref "openspec:$1"`
-- Each task must use: `--type task --parent <EPIC_ID>`
-- Use `--acceptance` for measurable done criteria (tests, behavior, docs).
-- Use `tk dep` only for real blockers.
-- Keep it chunky: deliverables (DB/API/UI/tests/docs), not one per checkbox.
+- Use clear, actionable titles
+- Include specific acceptance criteria (tests pass, behavior works, docs updated)
+- Keep tickets chunky — deliverables, not individual checkboxes
 
-Output EXACT commands in order:
-1) `tk create ...` epic
-2) 3–8x `tk create ...` tasks
-3) `tk dep ...` lines (if needed)
-4) What should appear in `tk ready` afterward
+## Step 5: Add dependencies (if needed)
 
-<!-- ultrahardwork -->
+Only add dependencies for real blockers:
+```bash
+tk dep <blocked-id> <blocker-id>
+```
+
+Example: If "Create API endpoints" must finish before "Build UI components", run:
+```bash
+tk dep <ui-task-id> <api-task-id>
+```
+
+## Step 6: Verify and report
+
+Show the final state:
+!`tk ready`
+
+## Output
+
+Summarize what was created:
+- Epic: `<epic-id>` — "<epic-title>"
+- Tasks created: `<count>`
+- Dependencies added: `<count>`
+- Ready to start: `<list of ready ticket IDs>`
+
+Suggest next step:
+> Run `/tk-queue` to see the full queue, or `/tk-start <ticket-id>` to begin implementation.
+
+---
+
+**STOP here. Do not begin implementation. The user will run `/tk-start` to begin work.**

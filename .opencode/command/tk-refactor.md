@@ -1,6 +1,6 @@
 ---
 description: "Merge duplicate tickets, consolidate overlapping tasks, and clean up tk dependencies [ulw]"
-agent: os-tk-agent
+agent: os-tk-planner
 permission:
   bash: allow
   skill: allow

@@ -63,9 +63,8 @@ If `useWorktrees: true`:
 
 **If `useWorktrees: true`:**
 For each ticket ID:
-1. Create branch: `git checkout -b ticket/<ticket-id>`
-2. Create worktree: `git worktree add .worktrees/<ticket-id> ticket/<ticket-id>`
-3. Worker operates in: `.worktrees/<ticket-id>/`
+1. Create worktree with new branch: `git worktree add -b ticket/<ticket-id> .worktrees/<ticket-id>`
+2. Worker operates in: `.worktrees/<ticket-id>/`
 
 **If `useWorktrees: false`:**
 - Worker operates in current directory

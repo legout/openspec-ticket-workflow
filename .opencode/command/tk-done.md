@@ -11,12 +11,13 @@ Parse:
 - `ticket-id`: first argument (required)
 - `change-id`: second argument (optional; will be auto-detected from epic's external_ref)
 
-## Step 1: Identify the OpenSpec change
+## Step 1: Identify the OpenSpec change AND epic ID
 
 If `change-id` is not provided:
-1. Get the ticket: `tk show <ticket-id>`
-2. Find the parent epic: `tk show <parent-id>`
+1. Get the ticket: `tk show <ticket-id>` → extract `parent` field as `epic-id`
+2. Find the parent epic: `tk show <epic-id>`
 3. Extract `external_ref` (format: `openspec:<change-id>`)
+4. Save both `epic-id` and `change-id` for later steps
 
 If no change-id can be found, ask the user to provide it.
 
