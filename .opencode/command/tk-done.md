@@ -23,7 +23,7 @@ If no change-id can be found, ask the user to provide it.
 
 ## Step 2: Load config
 
-Read `os-tk.config.json` for:
+Read `.os-tk/config.json` for:
 - `useWorktrees` (boolean)
 - `mainBranch` (default: "main")
 - `autoPush` (boolean)

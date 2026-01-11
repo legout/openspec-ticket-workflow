@@ -1,308 +1,299 @@
-# OpenSpec + Ticket + OpenCode Starter Kit
+# OpenSpec + Ticket (os-tk) Workflow
 
 A lightweight, agent-friendly workflow that combines:
 
-- **OpenSpec** for spec-driven changes (proposal → apply → archive)
+- **OpenSpec** for spec-driven changes (proposal -> apply -> archive)
 - **ticket (`tk`)** for git-backed task tracking (ready/blocked queues + dependencies)
-- **OpenCode** + **oh-my-opencode** for multi-agent orchestration (Sisyphus)
+- **OpenCode** slash commands for multi-agent orchestration
 
-This repo is meant to be copied into an existing project (or used as a template) so *any* coding agent can follow the same operating rules via `AGENTS.md`, while OpenCode users get a fast UX with `/commands`.
-
----
-
-## What you get
-
-- `AGENTS.md` — tool-agnostic rules any agent can follow.
-- `.opencode/agent/os-tk-agent.md` — a “workflow orchestrator” subagent.
-- `.opencode/skill/` — **modular expert knowledge** (OpenSpec & ticket) for better agent performance.
-- `.opencode/command/*` — specialized slash commands to:
-  - list/show OpenSpec changes
-  - display `tk ready/blocked`
-  - bootstrap a **3–8 chunky ticket** execution plan
-  - close + sync progress back to OpenSpec tasks
+This repo is a template. Use `os-tk` to install the workflow into any project, giving *any* coding agent consistent operating rules via `AGENTS.md`, while OpenCode users get slash commands.
 
 ---
 
-## Installation
-
-### 1) Prerequisites
-The workflow requires these CLI tools:
-
-- **OpenSpec** (spec-driven changes):
-  ```bash
-  npm install -g @fission-ai/openspec@latest
-  openspec init  # run in your project
-  ```
-- **ticket (`tk`)** (git-backed task tracking):
-  ```bash
-  brew tap wedow/tools
-  brew install ticket
-  ```
-- **jq** (optional, for `tk query`):
-  ```bash
-  brew install jq
-  ```
-
-### 2) Install Workflow Files
-Run this one-liner in your project root:
+## Quick Start
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/legout/openspec-ticket-opencode-starter/main/install.sh | bash
-```
+# 1. Install os-tk (one-time, global)
+curl -fsSL https://raw.githubusercontent.com/legout/openspec-ticket-opencode-starter/v0.1.0/install.sh | bash
 
-This will:
-- Create `.opencode/agent/` and `.opencode/command/` directories.
-- **Append** to your existing `AGENTS.md` (or create a new one).
+# 2. Add ~/.local/bin to PATH (if not already)
+export PATH="$HOME/.local/bin:$PATH"
 
-### 3) Commit changes
-```bash
-git add AGENTS.md .opencode
-git commit -m "Add OpenSpec + ticket + OpenCode workflow"
+# 3. Initialize the workflow in your project
+cd your-project
+os-tk init
+
+# 4. Commit the workflow files
+git add .os-tk .opencode AGENTS.md .gitignore
+git commit -m "Add OpenSpec + ticket workflow"
 ```
 
 ---
 
-## Typical Workflow
+## Prerequisites
+
+| Tool | Purpose | Install |
+|------|---------|---------|
+| **jq** | Required by os-tk | `brew install jq` or `apt install jq` |
+| **OpenSpec** | Spec-driven changes | `npm install -g @fission-ai/openspec@latest` |
+| **ticket (tk)** | Git-backed task tracking | `brew tap wedow/tools && brew install ticket` |
+
+After installing OpenSpec, run `openspec init` in your project.
+
+---
+
+## Installation Options
+
+### Option 1: Pinned Tag Install (Recommended)
+
+Install from a specific release for reproducibility:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/legout/openspec-ticket-opencode-starter/v0.1.0/install.sh | bash
+```
+
+Replace `v0.1.0` with the desired version tag.
+
+### Option 2: Manual Install
+
+Download the script directly:
+
+```bash
+mkdir -p ~/.local/bin
+curl -fsSL https://raw.githubusercontent.com/legout/openspec-ticket-opencode-starter/v0.1.0/os-tk -o ~/.local/bin/os-tk
+chmod +x ~/.local/bin/os-tk
+```
+
+Then run `os-tk init` in your project.
+
+### Adding ~/.local/bin to PATH
+
+Add one of these to your shell config:
+
+```bash
+# For bash (~/.bashrc):
+export PATH="$HOME/.local/bin:$PATH"
+
+# For zsh (~/.zshrc):
+export PATH="$HOME/.local/bin:$PATH"
+
+# For fish (~/.config/fish/config.fish):
+set -gx PATH $HOME/.local/bin $PATH
+```
+
+---
+
+## os-tk Commands
+
+| Command | Description |
+|---------|-------------|
+| `os-tk init [--worktree\|--simple]` | Initialize project (sync + apply + update AGENTS.md) |
+| `os-tk sync` | Download `.opencode/**` from templateRepo@templateRef |
+| `os-tk apply` | Re-apply config to agents (no network, no AGENTS.md) |
+| `os-tk version` | Show os-tk version and project templateRef |
+
+---
+
+## Configuration
+
+After running `os-tk init`, configuration is stored in `.os-tk/config.json`:
+
+```json
+{
+  "templateRepo": "legout/openspec-ticket-opencode-starter",
+  "templateRef": "v0.1.0",
+  "useWorktrees": true,
+  "worktreeDir": ".worktrees",
+  "defaultParallel": 3,
+  "mainBranch": "main",
+  "autoPush": true,
+  "unsafe": {
+    "allowParallel": false,
+    "allowDirtyDone": false,
+    "commitStrategy": "prompt"
+  },
+  "planner": {
+    "model": "openai/gpt-5.2",
+    "reasoningEffort": "high",
+    "temperature": 0
+  },
+  "worker": {
+    "model": "zai-coding-plan/glm-4.7",
+    "fallbackModels": ["minimax/MiniMax-M2.1"],
+    "reasoningEffort": "none",
+    "temperature": 0.2
+  }
+}
+```
+
+### Key Settings
+
+| Field | Description |
+|-------|-------------|
+| `templateRef` | Version to sync from. Use a tag (e.g., `v1.0.0`) or `latest` |
+| `useWorktrees` | `true` for safe parallel (isolated branches), `false` for simple mode |
+| `planner.model` | Model for planning/view-only commands |
+| `worker.model` | Model for implementation commands |
+
+### Updating the Workflow
+
+To update to a newer version:
+
+1. Edit `.os-tk/config.json` and change `templateRef` to the new tag (or `latest`)
+2. Run `os-tk sync` to download updated files
+3. Commit the changes
+
+---
+
+## What Gets Installed
+
+Running `os-tk init` creates/updates these files in your project:
+
+```
+.os-tk/
+  config.json              # Project config (commit this)
+
+.opencode/
+  agent/
+    os-tk-planner.md       # View-only planning agent
+    os-tk-bootstrapper.md  # Ticket design agent (strong reasoning)
+    os-tk-worker.md        # Implementation agent
+  command/
+    os-change.md           # View OpenSpec changes
+    os-proposal.md         # Create proposals
+    tk-bootstrap.md        # Design + create epic + tasks
+    tk-queue.md            # View ready/blocked
+    tk-start.md            # Start implementation
+    tk-done.md             # Close + sync + merge
+    tk-refactor.md         # Clean up backlog
+  skill/
+    openspec/SKILL.md      # OpenSpec expertise
+    ticket/SKILL.md        # tk expertise
+
+AGENTS.md                  # Agent-agnostic workflow rules
+```
+
+**Commit these files** to share the workflow with your team.
+
+---
+
+## Workflow
 
 ```
 +---------------------+       +---------------------------+       +---------------------+
 |      PLANNING       | ----> |         EXECUTION         | ----> |       ARCHIVE       |
 +---------------------+       +---------------------------+       +---------------------+
-           |                                |                                |
-  1. /os-proposal                 2. /tk-bootstrap                       |
-           |                                |                                |
-           v                                v                                |
-      [spec files]                   [epic + tasks]                      |
-                                             |                                |
-                                             v                                |
-                                     3. /tk-queue                             |
-                                             |                                |
-                                             v                                |
-                     4a. /tk-start <id>  OR  4b. /tk-start-multi <ids...>   |
-                                             |                                |
-                                             v                                |
-                                       (code & test)                          |
-                                             |                                |
-                                             v                                |
-                             5. /tk-close-and-sync <id> <os-id>               |
-                                             |            |                   |
-                                             |____________|                   |
-                                                   |                          v
-                                                   +-------------> 6. openspec archive
+         |                               |                                  |
+  1. /os-proposal                 2. /tk-bootstrap                          |
+         |                               |                                  |
+         v                               v                                  |
+    [spec files]                  [epic + tasks]                            |
+                                         |                                  |
+                                         v                                  |
+                                   3. /tk-queue                             |
+                                         |                                  |
+                                         v                                  |
+                              4. /tk-start <id>                             |
+                                         |                                  |
+                                         v                                  |
+                                   (code & test)                            |
+                                         |                                  |
+                                         v                                  |
+                               5. /tk-done <id>                             |
+                                         |                    |             |
+                                         |____________________|             v
+                                               |               6. openspec archive
+                                               +-------------------------->
 ```
 
 ### Phase 1: Planning
 
-Define what you want to build.
-
 ```bash
-# 1. Create a new proposal
-/os-proposal <change-id>
-# Example: /os-proposal search-feature
+# Create a new proposal
+/os-proposal search-feature
 ```
 
 ### Phase 2: Execution
 
-Break it down into chunks and execute.
-
 ```bash
-# 2. Bootstrap tickets (Epic + Tasks)
-/tk-bootstrap <change-id> "<Epic Title>"
-# Example: /tk-bootstrap search-feature "Implement site-wide search"
-```
+# Bootstrap tickets (Epic + Tasks)
+/tk-bootstrap search-feature "Implement site-wide search"
 
-Run the `tk create` commands generated by the agent in the previous step.
-
-```bash
-# 3. Check the queue for ready work
+# Check the queue
 /tk-queue
+
+# Start a ticket
+/tk-start ab-101
+
+# ... implement and test ...
+
+# Close and sync
+/tk-done ab-101
 ```
-
-```bash
-# 4. Start a ticket
-/tk-start <ticket-id>
-# Example: /tk-start ab-101
-```
-
-Implement the code, run tests. When done:
-
-```bash
-# 5. Close ticket and sync progress
-/tk-close-and-sync <ticket-id> <change-id>
-# Example: /tk-close-and-sync ab-101 search-feature
-```
-
-Repeat steps 3-5 until all tasks are done.
 
 ### Phase 3: Archive
 
-Finalize the change.
-
-```bash
-# 6. Archive the spec change
-openspec archive <change-id> --yes
-# Example: openspec archive search-feature --yes
-```
-
----
-
-## Workflow Example: "Add Search"
-
-Here's a concrete example implementing a "site-wide search" feature.
-
-```
-╔════════════════════════════════════════════════════════════════════════════════╗
-║                          EXAMPLE: "Add Search"                                 ║
-╠════════════════════════════════════════════════════════════════════════════════╣
-║                                                                                ║
-║  1. /os-proposal search-feature                                          ║
-║     └─▶ Agent creates openspec/changes/search-feature/{proposal,design,tasks}  ║
-║                                                                                ║
-║  2. /tk-bootstrap search-feature "Implement site-wide search"                  ║
-║     └─▶ Agent proposes: Epic + 4 Tasks (DB, API, UI, Tests)                    ║
-║                                                                                ║
-║  3a. Sequential Execution Loop:                                                 ║
-║     ├─ /tk-queue           → Pick "DB: Search schema" (ab-101)                 ║
-║     ├─ /tk-start ab-101     → Start work                                        ║
-║     ├─ (implement + test)                                                      ║
-║     └─ /tk-close-and-sync ab-101 search-feature                                ║
-║        └─▶ Closes ticket, checks off "DB Schema" in OpenSpec                   ║
-║                                                                                ║
-║  3b. Parallel Execution (for independent tasks):                                 ║
-║     ├─ /tk-queue all       → See all ready tickets                            ║
-║     ├─ /tk-start-multi ab-101 ab-102 ab-103  → Start 3 in parallel           ║
-║     ├─ (all implement + test concurrently)                                      ║
-║     └─ /tk-close-and-sync ab-101 search-feature  (repeat for each)           ║
-║        └─▶ Closes tickets, checks off items in OpenSpec                       ║
-║                                                                                ║
-║  4. openspec archive search-feature --yes                                      ║
-║     └─▶ Done! Change archived.                                                 ║
-║                                                                                ║
-╚════════════════════════════════════════════════════════════════════════════════╝
-```
-
-**Step 1: Define the Specs**
-```bash
-/os-proposal search-feature
-```
-The agent creates `openspec/changes/search-feature/` with all required files.
-
-**Step 2: Bootstrap Tickets**
-```bash
-/tk-bootstrap search-feature "Implement site-wide search"
-```
-The agent returns commands like:
-```bash
-tk create --type epic --title "Implement site-wide search" --external-ref "openspec:search-feature"
-# Output: Created epic ab-100
-
-tk create --type task --parent ab-100 --title "DB: Search schema"
-tk create --type task --parent ab-100 --title "API: Search endpoint"
-tk create --type task --parent ab-100 --title "UI: Search component"
-tk create --type task --parent ab-100 --title "Tests: Search integration"
-```
-
-**Step 3: Execute and Sync**
-
-Option A — sequential:
-```bash
-/tk-queue                             # See what's ready
-/tk-start ab-101                      # Start the DB task (shows context)
-# ... implement and test ...
-/tk-close-and-sync ab-101 search-feature  # Close and update spec
-```
-
-Option B — parallel (for independent tickets):
-```bash
-/tk-queue all                         # See all ready tickets
-/tk-start-multi ab-101 ab-102 ab-103  # Start multiple in parallel
-# ... all implement and test in parallel ...
-/tk-close-and-sync ab-101 search-feature  # Close each when done
-/tk-close-and-sync ab-102 search-feature
-/tk-close-and-sync ab-103 search-feature
-```
-
-**Step 4: Archive**
-```bash
-openspec archive search-feature --yes
-```
-
-Option B — parallel (for independent tickets):
-```bash
-/tk-queue all                         # See all ready tickets
-/tk-start-multi ab-101 ab-102 ab-103  # Start multiple in parallel
-# ... all implement and test in parallel ...
-/tk-close-and-sync ab-101 search-feature  # Close each when done
-/tk-close-and-sync ab-102 search-feature
-/tk-close-and-sync ab-103 search-feature
-```
-
-**Step 4: Archive**
-```bash
-openspec archive search-feature --yes
-```
-
----
-
-## Why “3–8 chunky tickets”?
-
-This workflow favors **3–8 deliverable-sized tickets** over fine-grained checkboxes.
-- **Better for Context:** Agents focus on one "chunk" (e.g., "Implement Auth API") rather than 10 tiny tasks.
-- **Cleaner Backlog:** `tk ready` stays readable for humans.
-- **Flexibility:** Implementation details can evolve within a chunky ticket without needing constant re-ticketing.
+When all tasks are complete, `/tk-done` auto-archives the OpenSpec change.
 
 ---
 
 ## OpenCode Commands
 
 | Command | Description |
-| :--- | :--- |
-| `/os-status` | Show active OpenSpec changes and next steps. |
-| `/os-show <id>` | Show change details and suggest ticket chunks. |
-| `/os-proposal <id>` | Create a new OpenSpec proposal. |
-| `/tk-queue [next\|all]` | Show `tk ready/blocked`. Use `next` (default) for one task, `all` for parallel work. |
-| `/tk-start <id>` | Start a ticket in the background (allows parallel implementation). |
-| `/tk-start-multi <id1> <id2> ...` | Start multiple tickets in parallel (wait and summarize). Optional: `--parallel N` to set concurrency (default: 3). Only starts tickets in `tk ready`. |
-| `/tk-bootstrap <id> "<title>"` | Generate `tk create` commands for an epic + tasks. |
-| `/tk-refactor` | Scan backlog, merge duplicates, consolidate overlapping tasks, and clean up dependencies. |
-| `/tk-close-and-sync <tk-id> <os-id>` | Add notes, close ticket, and sync OpenSpec progress. |
+|---------|-------------|
+| `/os-proposal <id>` | Create a new OpenSpec proposal |
+| `/os-change [id]` | Show active changes or details for one change |
+| `/tk-bootstrap <id> "<title>" [--yes]` | Design epic + 3-8 chunky tasks (preview by default, `--yes` to execute) |
+| `/tk-queue [next\|all\|<change-id>]` | Show ready/blocked tickets |
+| `/tk-start <id...> [--parallel N]` | Start ticket(s) and implement |
+| `/tk-done <id> [change-id]` | Close ticket, sync progress, merge, push |
+| `/tk-refactor` | Merge duplicates, clean up backlog |
 
 ---
 
-### Using with oh-my-opencode (Sisyphus)
+## Why "3-8 Chunky Tickets"?
 
-If you have `oh-my-opencode` installed, the **Sisyphus** orchestrator can manage the entire workflow:
-1. **Automatic Triggering:** Key commands like `/os-proposal`, `/tk-bootstrap`, `/tk-queue`, and `/tk-start` include `[ultrahardwork]` in their header and body, which automatically triggers Sisyphus orchestration.
-2. Sisyphus will monitor the `tk` queue and OpenSpec tasks, delegating "chunky" implementation tasks to the `os-tk-agent` in parallel.
+This workflow favors **3-8 deliverable-sized tickets** over fine-grained checkboxes:
 
-### Using with any Agent (Non-OpenCode)
-1. Using OpenSpec for high-level requirements.
-2. Creating a `tk` epic with `--external-ref "openspec:<id>"`.
-3. Executing tasks from `tk ready`.
-
-### Backlog Hygiene
-
-Keep your backlog clean and focused:
-- **Avoid duplicates:** Use `/tk-refactor` after bootstrapping large proposals or when you suspect overlapping work.
-- **Shared tickets:** For cross-proposal dependencies (e.g., database migrations needed by both Proposal A and Proposal B), create a shared ticket rather than duplicating effort.
-- **Consolidate tiny tasks:** If you have many small tickets that could be done in one session, run `/tk-refactor` to merge them into "chunky" deliverables.
+- **Better for Context:** Agents focus on one "chunk" (e.g., "Implement Auth API") rather than 10 tiny tasks.
+- **Cleaner Backlog:** `tk ready` stays readable.
+- **Flexibility:** Implementation details can evolve within a chunky ticket.
 
 ---
 
-## Recommended conventions
+## Parallel Execution
 
-- **External reference:** every epic uses `--external-ref "openspec:<change-id>"`
-- **Commit messages:** include ticket IDs when relevant, e.g. `ab-1234: add endpoint`
-- **Dependencies:** only model real blockers with `tk dep`
-- **Notes:** use `tk add-note` to capture “what changed + how to verify”
+### Safe Mode (default)
+
+With `useWorktrees: true`, each ticket gets an isolated git worktree:
+
+```bash
+/tk-start ab-101 ab-102 ab-103 --parallel 3
+```
+
+### Simple Mode
+
+With `useWorktrees: false`, all work happens in the main working tree. Parallel execution requires `unsafe.allowParallel: true`.
+
+---
+
+## Documentation
+
+For more details, see the `docs/` folder:
+
+- [**Model Selection Rationale**](docs/models.md) — Why we use strong reasoning models for planning and fast OSS models for implementation
+- [**Versioning and Releases**](docs/versioning.md) — SemVer scheme, release process, version pinning
 
 ---
 
 ## Troubleshooting
 
-- **`tk query` fails:** Ensure `jq` is installed.
-- **Permissions:** Some setups require explicit `bash` permission for OpenCode commands.
-- **Empty Queue:** Check `tk blocked` to see if dependencies are holding up work.
+| Problem | Solution |
+|---------|----------|
+| `jq: command not found` | Install jq: `brew install jq` |
+| `os-tk: command not found` | Add `~/.local/bin` to PATH |
+| `tk query` fails | Install jq |
+| Empty queue | Run `tk blocked` to see what's waiting |
 
 ---
 

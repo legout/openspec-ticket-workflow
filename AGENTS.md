@@ -1,4 +1,4 @@
-<!-- OPENSPEC-TK-START -->
+<!-- OS-TK-START -->
 # Agent Workflow: OpenSpec + Ticket (tk)
 
 This repo uses OpenSpec for spec-driven changes and tk for task execution tracking.
@@ -28,13 +28,5 @@ This repo uses OpenSpec for spec-driven changes and tk for task execution tracki
 - **Safe mode** (`useWorktrees: true`): Parallel via git worktrees, isolated branches.
 - **Simple mode** (`useWorktrees: false`): Single working tree; parallel only if `unsafe.allowParallel: true`.
 
-Configure via `os-tk.config.json`. Initialize with `./os-tk init`.
-
-## Workflow Loop
-
-1. Create/validate OpenSpec proposal
-2. Bootstrap tk epic + tickets
-3. `tk ready` -> `/tk-start` -> implement -> `/tk-done`
-4. Repeat until all tickets closed
-5. OpenSpec auto-archives when complete
-<!-- OPENSPEC-TK-END -->
+Configure via `.os-tk/config.json`. Initialize with `os-tk init`.
+<!-- OS-TK-END -->

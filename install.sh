@@ -1,86 +1,159 @@
 #!/usr/bin/env bash
-# OpenSpec + Ticket + OpenCode Starter Kit - Installer
+# os-tk installer
 # https://github.com/legout/openspec-ticket-opencode-starter
+#
+# Installs:
+#   - os-tk binary to ~/.local/bin/os-tk
+#   - .os-tk/config.json in current directory (project root)
+#
+# Usage:
+#   curl -fsSL https://raw.githubusercontent.com/legout/openspec-ticket-opencode-starter/v0.1.0/install.sh | bash
+#
+# To pin a specific version:
+#   curl -fsSL https://raw.githubusercontent.com/legout/openspec-ticket-opencode-starter/<TAG>/install.sh | bash
 
 set -euo pipefail
 
-REPO_URL="https://raw.githubusercontent.com/legout/openspec-ticket-opencode-starter/main"
+# =============================================================================
+# VERSION (must match os-tk VERSION)
+# =============================================================================
+VERSION="0.1.0"
 
-# Files to install
-OPENCODE_FILES=(
-  ".opencode/agent/os-tk-agent.md"
-  ".opencode/command/os-proposal.md"
-  ".opencode/command/os-show.md"
-  ".opencode/command/os-status.md"
-  ".opencode/command/tk-bootstrap.md"
-  ".opencode/command/tk-close-and-sync.md"
-  ".opencode/command/tk-queue.md"
-  ".opencode/command/tk-refactor.md"
-  ".opencode/command/tk-start.md"
-  ".opencode/command/tk-start-multi.md"
-  ".opencode/skill/openspec/SKILL.md"
-  ".opencode/skill/ticket/SKILL.md"
-)
+# =============================================================================
+# CONFIG
+# =============================================================================
+REPO="legout/openspec-ticket-opencode-starter"
+INSTALL_DIR="$HOME/.local/bin"
+CONFIG_DIR=".os-tk"
+CONFIG_FILE="$CONFIG_DIR/config.json"
 
-echo "Installing OpenSpec + Ticket + OpenCode Starter Kit..."
+# Determine the ref we're installing from (embedded at release time, or detect from URL)
+# When invoked via curl|bash from a tag URL, the VERSION above should match
+INSTALL_REF="${INSTALL_REF:-v$VERSION}"
 
-# Create directories
-mkdir -p .opencode/agent .opencode/command .opencode/skill/openspec .opencode/skill/ticket
+# =============================================================================
+# HELPERS
+# =============================================================================
+info() {
+  echo "[os-tk] $*"
+}
 
-# Download .opencode files (overwrites existing)
-for file in "${OPENCODE_FILES[@]}"; do
-  echo "  → $file"
-  curl -sSL "$REPO_URL/$file" -o "$file"
-done
+error() {
+  echo "[os-tk] ERROR: $*" >&2
+  exit 1
+}
 
-# Handle AGENTS.md with markers
-MARKER_START="<!-- OPENSPEC-TK-START -->"
-MARKER_END="<!-- OPENSPEC-TK-END -->"
+# =============================================================================
+# MAIN
+# =============================================================================
+main() {
+  info "Installing os-tk $VERSION..."
+  echo ""
 
-# Download new AGENTS.md content (includes markers)
-NEW_AGENTS=$(curl -sSL "$REPO_URL/AGENTS.md")
-
-if [[ -f "AGENTS.md" ]]; then
-  echo "  → AGENTS.md (updating existing file)"
-
-  # Check if markers exist
-  if grep -q "$MARKER_START" AGENTS.md; then
-    # Remove old content between markers (inclusive) and append new content
-    # Using perl for cross-platform compatibility (GNU and BSD sed differ for multiline)
-    perl -i -0pe "s/\Q$MARKER_START\E.*?\Q$MARKER_END\E//gs" AGENTS.md || true
-    echo "$NEW_AGENTS" >> AGENTS.md
-  else
-    # No markers exist - just append
-    echo "" >> AGENTS.md
-    echo "$NEW_AGENTS" >> AGENTS.md
+  # Check for curl
+  if ! command -v curl &>/dev/null; then
+    error "'curl' is required but not installed."
   fi
-else
-  echo "  → AGENTS.md (creating new file)"
-  echo "$NEW_AGENTS" > AGENTS.md
-fi
 
-echo ""
-echo "✓ Workflow files installed!"
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "PREREQUISITES: Make sure you have these CLI tools installed:"
-echo ""
-echo "  1. OpenSpec (spec-driven changes)"
-echo "     npm install -g @fission-ai/openspec@latest"
-echo "     Then run: openspec init"
-echo ""
-echo "  2. ticket (tk) (git-backed task tracking)"
-echo "     brew tap wedow/tools && brew install ticket"
-echo "     (or see: https://github.com/wedow/ticket)"
-echo ""
-echo "  3. jq (optional, for 'tk query')"
-echo "     brew install jq  # or: apt install jq"
-echo ""
-echo "  4. oh-my-opencode (optional, for orchestration)"
-echo "     Prompt OpenCode: \"Install and configure oh-my-opencode\""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-echo "NEXT STEPS:"
-echo "  1. git add AGENTS.md .opencode"
-echo "  2. git commit -m 'Add OpenSpec + ticket + OpenCode workflow'"
-echo ""
+  # Create install directory
+  mkdir -p "$INSTALL_DIR"
+
+  # Download os-tk binary
+  local os_tk_url="https://raw.githubusercontent.com/$REPO/$INSTALL_REF/os-tk"
+  info "Downloading os-tk from $INSTALL_REF..."
+  
+  if curl -fsSL "$os_tk_url" -o "$INSTALL_DIR/os-tk"; then
+    chmod +x "$INSTALL_DIR/os-tk"
+    info "Installed: $INSTALL_DIR/os-tk"
+  else
+    error "Failed to download os-tk from $os_tk_url"
+  fi
+
+  echo ""
+
+  # Create project config if in a git repo (or any directory)
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    mkdir -p "$CONFIG_DIR"
+    cat > "$CONFIG_FILE" << JSON
+{
+  "templateRepo": "$REPO",
+  "templateRef": "$INSTALL_REF",
+  "useWorktrees": true,
+  "worktreeDir": ".worktrees",
+  "defaultParallel": 3,
+  "mainBranch": "main",
+  "autoPush": true,
+  "unsafe": {
+    "allowParallel": false,
+    "allowDirtyDone": false,
+    "commitStrategy": "prompt"
+  },
+  "planner": {
+    "model": "openai/gpt-5.2",
+    "reasoningEffort": "high",
+    "temperature": 0
+  },
+  "worker": {
+    "model": "zai-coding-plan/glm-4.7",
+    "fallbackModels": ["minimax/MiniMax-M2.1"],
+    "reasoningEffort": "none",
+    "temperature": 0.2
+  }
+}
+JSON
+    info "Created: $CONFIG_FILE"
+  else
+    info "Config already exists: $CONFIG_FILE (not overwritten)"
+  fi
+
+  echo ""
+  echo "=============================================================================="
+  echo " os-tk $VERSION installed!"
+  echo "=============================================================================="
+  echo ""
+  echo " IMPORTANT: Add ~/.local/bin to your PATH if not already done:"
+  echo ""
+  echo "   # For bash (~/.bashrc):"
+  echo "   export PATH=\"\$HOME/.local/bin:\$PATH\""
+  echo ""
+  echo "   # For zsh (~/.zshrc):"
+  echo "   export PATH=\"\$HOME/.local/bin:\$PATH\""
+  echo ""
+  echo "   # For fish (~/.config/fish/config.fish):"
+  echo "   set -gx PATH \$HOME/.local/bin \$PATH"
+  echo ""
+  echo " After updating your shell config, restart your shell or run:"
+  echo "   source ~/.bashrc  # or ~/.zshrc"
+  echo ""
+  echo "=============================================================================="
+  echo " NEXT STEPS"
+  echo "=============================================================================="
+  echo ""
+  echo " 1. Initialize the workflow (downloads .opencode, updates AGENTS.md):"
+  echo "    os-tk init"
+  echo ""
+  echo " 2. Commit the workflow files:"
+  echo "    git add .os-tk .opencode AGENTS.md .gitignore"
+  echo "    git commit -m 'Add OpenSpec + ticket workflow'"
+  echo ""
+  echo "=============================================================================="
+  echo " PREREQUISITES"
+  echo "=============================================================================="
+  echo ""
+  echo " Make sure you have these CLI tools installed:"
+  echo ""
+  echo " 1. jq (required for os-tk)"
+  echo "    brew install jq  # or: apt install jq"
+  echo ""
+  echo " 2. OpenSpec (spec-driven changes)"
+  echo "    npm install -g @fission-ai/openspec@latest"
+  echo "    openspec init  # run in your project"
+  echo ""
+  echo " 3. ticket (tk) (git-backed task tracking)"
+  echo "    brew tap wedow/tools && brew install ticket"
+  echo ""
+  echo "=============================================================================="
+  echo ""
+}
+
+main "$@"

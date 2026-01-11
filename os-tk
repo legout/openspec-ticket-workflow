@@ -1,49 +1,64 @@
 #!/usr/bin/env bash
-# os-tk — repo-local initializer and config applier for os-tk workflow
+# os-tk — OpenSpec + Ticket workflow CLI
 #
-# This script:
-# - Creates/updates os-tk.config.json with defaults
-# - Applies config to .opencode/agent frontmatter (models, temps)
-# - Ensures .worktrees/ is in .gitignore when worktrees are enabled
+# Global tool installed to ~/.local/bin/os-tk
+# Per-project config at .os-tk/config.json
 #
-# Usage:
-#   ./os-tk init           # Create initial config + apply to agents
-#   ./os-tk init --worktree   # Force worktree mode (safe)
-#   ./os-tk init --simple     # Force simple mode (no worktrees)
-#   ./os-tk apply            # Re-apply config to agents
+# Commands:
+#   os-tk init           # Initialize project: sync + apply + update AGENTS.md
+#   os-tk sync           # Download .opencode/** from templateRepo@templateRef
+#   os-tk apply          # Re-apply config to agents (no network, no AGENTS.md)
+#   os-tk version        # Show os-tk version and project templateRef
+#   os-tk --version      # Show os-tk version
+#   os-tk --help         # Show usage
 
 set -euo pipefail
 
-# Fix 9: Check for jq dependency
-if ! command -v jq &>/dev/null; then
-  echo "Error: 'jq' is required but not installed."
-  echo "Install with: apt install jq / brew install jq"
-  exit 1
-fi
+# =============================================================================
+# VERSION (single source of truth)
+# =============================================================================
+VERSION="0.1.0"
 
-CONFIG_FILE="os-tk.config.json"
-OPENCODE_AGENT_DIR=".opencode/agent"
-PLANNER_AGENT="$OPENCODE_AGENT_DIR/os-tk-planner.md"
-WORKER_AGENT="$OPENCODE_AGENT_DIR/os-tk-worker.md"
+# =============================================================================
+# PATHS
+# =============================================================================
+CONFIG_DIR=".os-tk"
+CONFIG_FILE="$CONFIG_DIR/config.json"
+OPENCODE_DIR=".opencode"
+AGENTS_FILE="AGENTS.md"
 
-usage() {
-  echo "Usage: $0 [command] [options]"
-  echo ""
-  echo "Commands:"
-  echo "  init [--worktree|--simple]  Initialize os-tk config and apply to agents"
-  echo "  apply                       Re-apply config to agents (useful after manual edits)"
-  echo ""
-  echo "Options for 'init':"
-  echo "  --worktree   Enable worktree mode (safe parallel, default)"
-  echo "  --simple     Disable worktrees (simple/unsafe mode)"
-  echo ""
-  echo "Config is stored in: $CONFIG_FILE"
-  exit 1
+# Markers for AGENTS.md block
+MARKER_START="<!-- OS-TK-START -->"
+MARKER_END="<!-- OS-TK-END -->"
+
+# Legacy markers (for migration)
+LEGACY_MARKER_START="<!-- OPENSPEC-TK-START -->"
+LEGACY_MARKER_END="<!-- OPENSPEC-TK-END -->"
+
+# =============================================================================
+# DEPENDENCIES
+# =============================================================================
+check_dependencies() {
+  if ! command -v jq &>/dev/null; then
+    echo "Error: 'jq' is required but not installed."
+    echo "Install with: apt install jq / brew install jq"
+    exit 1
+  fi
+  if ! command -v curl &>/dev/null; then
+    echo "Error: 'curl' is required but not installed."
+    exit 1
+  fi
 }
 
+# =============================================================================
+# CONFIG
+# =============================================================================
 default_config() {
-  cat << 'JSON'
+  local ref="${1:-$VERSION}"
+  cat << JSON
 {
+  "templateRepo": "legout/openspec-ticket-opencode-starter",
+  "templateRef": "v$ref",
   "useWorktrees": true,
   "worktreeDir": ".worktrees",
   "defaultParallel": 3,
@@ -62,14 +77,210 @@ default_config() {
   "worker": {
     "model": "zai-coding-plan/glm-4.7",
     "fallbackModels": ["minimax/MiniMax-M2.1"],
-    "reasoningEffort": "medium",
+    "reasoningEffort": "none",
     "temperature": 0.2
   }
 }
 JSON
 }
 
-# Rewritten to properly expand variables and apply config including reasoningEffort
+load_config() {
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    echo "Error: Config file not found: $CONFIG_FILE"
+    echo "Run 'os-tk init' first, or check you're in a project root."
+    exit 1
+  fi
+  cat "$CONFIG_FILE"
+}
+
+get_config_value() {
+  local config="$1"
+  local key="$2"
+  local default="${3:-}"
+  local value
+  value=$(echo "$config" | jq -r "$key // empty")
+  if [[ -z "$value" || "$value" == "null" ]]; then
+    echo "$default"
+  else
+    echo "$value"
+  fi
+}
+
+# =============================================================================
+# TEMPLATE REF RESOLUTION
+# =============================================================================
+resolve_template_ref() {
+  local config="$1"
+  local ref
+  ref=$(get_config_value "$config" '.templateRef' 'latest')
+  
+  if [[ "$ref" == "latest" ]]; then
+    local repo
+    repo=$(get_config_value "$config" '.templateRepo' 'legout/openspec-ticket-opencode-starter')
+    
+    echo "Resolving 'latest' from GitHub releases..." >&2
+    
+    # Follow redirect to get latest release tag
+    local redirect_url
+    redirect_url=$(curl -sI "https://github.com/$repo/releases/latest" 2>/dev/null | grep -i '^location:' | tr -d '\r' | awk '{print $2}')
+    
+    if [[ -n "$redirect_url" ]]; then
+      ref=$(basename "$redirect_url")
+      echo "Resolved 'latest' to: $ref" >&2
+    else
+      echo "Warning: Could not resolve 'latest', falling back to 'main'" >&2
+      ref="main"
+    fi
+  fi
+  
+  echo "$ref"
+}
+
+# =============================================================================
+# SYNC: Download .opencode/** from template repo
+# =============================================================================
+OPENCODE_FILES=(
+  "agent/os-tk-planner.md"
+  "agent/os-tk-worker.md"
+  "agent/os-tk-bootstrapper.md"
+  "command/os-change.md"
+  "command/os-proposal.md"
+  "command/tk-bootstrap.md"
+  "command/tk-done.md"
+  "command/tk-queue.md"
+  "command/tk-refactor.md"
+  "command/tk-start.md"
+  "skill/openspec/SKILL.md"
+  "skill/ticket/SKILL.md"
+)
+
+cmd_sync() {
+  check_dependencies
+  
+  local config
+  config=$(load_config)
+  
+  local repo
+  repo=$(get_config_value "$config" '.templateRepo' 'legout/openspec-ticket-opencode-starter')
+  
+  local ref
+  ref=$(resolve_template_ref "$config")
+  
+  local base_url="https://raw.githubusercontent.com/$repo/$ref"
+  
+  echo "Syncing .opencode from $repo@$ref..."
+  echo ""
+  
+  # Create directories
+  mkdir -p "$OPENCODE_DIR/agent" "$OPENCODE_DIR/command" "$OPENCODE_DIR/skill/openspec" "$OPENCODE_DIR/skill/ticket"
+  
+  # Download files (overwrites existing)
+  local failed=0
+  for file in "${OPENCODE_FILES[@]}"; do
+    local url="$base_url/.opencode/$file"
+    local dest="$OPENCODE_DIR/$file"
+    
+    if curl -sSfL "$url" -o "$dest" 2>/dev/null; then
+      echo "  [ok] $dest"
+    else
+      echo "  [FAIL] $dest (from $url)"
+      ((failed++)) || true
+    fi
+  done
+  
+  if [[ $failed -gt 0 ]]; then
+    echo ""
+    echo "Warning: $failed file(s) failed to download."
+    echo "Check that templateRef '$ref' exists and contains these files."
+  fi
+  
+  echo ""
+  echo "Sync complete."
+  
+  # Also update AGENTS.md block
+  echo ""
+  update_agents_md
+}
+
+# =============================================================================
+# AGENTS.MD: Update the OS-TK block
+# =============================================================================
+AGENTS_BLOCK='<!-- OS-TK-START -->
+# Agent Workflow: OpenSpec + Ticket (tk)
+
+This repo uses OpenSpec for spec-driven changes and tk for task execution tracking.
+
+## Core Rules
+
+1. **Specs before code** - Create an OpenSpec proposal before implementing.
+2. **One change = one epic** - Create a tk epic with `--external-ref "openspec:<change-id>"`.
+3. **3-8 chunky tickets** - Break work into deliverables (DB/API/UI/tests/docs).
+4. **Queue-driven execution** - Pick work via `tk ready`, never blind implementation.
+5. **`/tk-done` is mandatory** - Always use `/tk-done` to close work (syncs tasks + archives + merges + pushes).
+
+## Commands
+
+| Command | Purpose |
+|---------|---------|
+| `/os-proposal <id>` | Create/update OpenSpec change files |
+| `/os-change [id]` | View change status (view-only) |
+| `/tk-bootstrap <change-id> "<title>"` | Create tk epic + tasks from OpenSpec change |
+| `/tk-queue [next\|all\|<change-id>]` | Show ready/blocked tickets (view-only) |
+| `/tk-start <id...> [--parallel N]` | Start ticket(s) and implement |
+| `/tk-done <id> [change-id]` | Close + sync + archive + merge + push |
+| `/tk-refactor` | Merge duplicates, clean up backlog (optional) |
+
+## Parallel Execution
+
+- **Safe mode** (`useWorktrees: true`): Parallel via git worktrees, isolated branches.
+- **Simple mode** (`useWorktrees: false`): Single working tree; parallel only if `unsafe.allowParallel: true`.
+
+Configure via `.os-tk/config.json`. Initialize with `os-tk init`.
+<!-- OS-TK-END -->'
+
+update_agents_md() {
+  echo "Updating AGENTS.md..."
+  
+  if [[ ! -f "$AGENTS_FILE" ]]; then
+    echo "  Creating new AGENTS.md"
+    echo "$AGENTS_BLOCK" > "$AGENTS_FILE"
+    return
+  fi
+  
+  local content
+  content=$(cat "$AGENTS_FILE")
+  
+  # Check for new markers
+  if grep -qF "$MARKER_START" "$AGENTS_FILE"; then
+    echo "  Replacing existing OS-TK block"
+    # Remove old block and append new one
+    perl -i -0pe "s/\Q$MARKER_START\E.*?\Q$MARKER_END\E//gs" "$AGENTS_FILE"
+    # Remove trailing blank lines then append
+    sed -i -e :a -e '/^\n*$/{$d;N;ba' -e '}' "$AGENTS_FILE" 2>/dev/null || true
+    echo "" >> "$AGENTS_FILE"
+    echo "$AGENTS_BLOCK" >> "$AGENTS_FILE"
+    return
+  fi
+  
+  # Check for legacy markers (migration)
+  if grep -qF "$LEGACY_MARKER_START" "$AGENTS_FILE"; then
+    echo "  Migrating from legacy OPENSPEC-TK markers to OS-TK markers"
+    perl -i -0pe "s/\Q$LEGACY_MARKER_START\E.*?\Q$LEGACY_MARKER_END\E//gs" "$AGENTS_FILE"
+    sed -i -e :a -e '/^\n*$/{$d;N;ba' -e '}' "$AGENTS_FILE" 2>/dev/null || true
+    echo "" >> "$AGENTS_FILE"
+    echo "$AGENTS_BLOCK" >> "$AGENTS_FILE"
+    return
+  fi
+  
+  # No markers exist - append
+  echo "  Appending OS-TK block"
+  echo "" >> "$AGENTS_FILE"
+  echo "$AGENTS_BLOCK" >> "$AGENTS_FILE"
+}
+
+# =============================================================================
+# APPLY: Regenerate agent files from config (no network, no AGENTS.md)
+# =============================================================================
 rebuild_agent_from_template() {
   local agent_file="$1"
   local role="$2"
@@ -77,21 +288,26 @@ rebuild_agent_from_template() {
   local temperature="$4"
   local reasoning_effort="$5"
   
-  # Different permissions for planner (view-only) vs worker (execution)
+  # Different permissions for each role
   local edit_perm="allow"
   local write_perm="allow"
   if [[ "$role" == "planner" ]]; then
     edit_perm="deny"
     write_perm="deny"
+  elif [[ "$role" == "bootstrapper" ]]; then
+    # Bootstrapper can edit AGENTS.md but not code files (enforced by contract)
+    edit_perm="allow"
+    write_perm="allow"
   fi
   
-  # Build optional reasoningEffort line (only include if not empty/null)
+  # Build optional reasoningEffort line (skip if empty, null, or "none")
   local reasoning_line=""
-  if [[ -n "$reasoning_effort" && "$reasoning_effort" != "null" ]]; then
+  local lower_effort
+  lower_effort=$(echo "$reasoning_effort" | tr '[:upper:]' '[:lower:]')
+  if [[ -n "$reasoning_effort" && "$reasoning_effort" != "null" && "$lower_effort" != "none" ]]; then
     reasoning_line="reasoningEffort: ${reasoning_effort}"
   fi
   
-  # Use unquoted heredoc for variable expansion, include model, temperature, and reasoningEffort
   cat > "$agent_file" << AGENT
 ---
 name: os-tk-${role}
@@ -131,7 +347,7 @@ When invoked via a command (e.g., `/os-change`, `/tk-queue`):
 - The command markdown file is the HIGHEST PRIORITY contract.
 - If any conflict between this description, skills, or general rules and the command's contract:
   - **The command contract wins. Always.**
-- If a command says STOP → you STOP.
+- If a command says STOP -> you STOP.
 
 ## View-Only Contracts
 
@@ -203,87 +419,131 @@ When implementation is complete:
 - Explicitly instruct the user to run `/tk-done <id> [change-id]`.
 AGENT
 
+  elif [[ "$role" == "bootstrapper" ]]; then
+    cat >> "$agent_file" << 'AGENT'
+
+You design and create **tk tickets** for OpenSpec changes using strong reasoning.
+
+## Core Rules
+
+- Use strong reasoning to design 3-8 chunky, deliverable-sized tickets.
+- Only run `tk create`, `tk dep`, `tk show`, `tk query` commands.
+- May update `AGENTS.md` **only within the `<!-- OS-TK-START -->` / `<!-- OS-TK-END -->` markers**.
+- Never edit code files, config files, or implement features.
+- Never run `tk start`, `tk close`, or `tk add-note`.
+
+## Command Precedence
+
+When invoked via a command (e.g., `/tk-bootstrap`):
+- The command markdown file is the HIGHEST PRIORITY contract.
+- If any conflict between this description and the command's contract:
+  - **The command contract wins. Always.**
+
+## Allowed Actions
+
+- `openspec list`, `openspec show <id>`, `openspec validate <id>`
+- `tk create`, `tk dep`, `tk show`, `tk query`
+- Read and analyze specs to design ticket structure
+- Update `AGENTS.md` OS-TK block (only within markers)
+
+## Forbidden Actions
+
+- `tk start`, `tk close`, `tk add-note`
+- Editing code files (*.py, *.ts, *.js, etc.)
+- Editing config files (*.json, *.yaml, etc.) except AGENTS.md markers
+- Implementing features or writing application code
+- Archiving OpenSpec
+
+## Output
+
+When bootstrapping is complete:
+- Summarize the epic and tasks created
+- List ticket IDs and their dependencies
+- Suggest next step: `/tk-queue` to see ready tickets
+AGENT
+
   else
     echo "Error: Unknown role: $role"
     exit 1
   fi
 }
 
-# Fix 6: Use the configured worktree_dir variable instead of hardcoded value
 ensure_gitignore_worktrees() {
   local config="$1"
   local use_worktrees
-  use_worktrees=$(echo "$config" | jq -r '.useWorktrees // false')
+  use_worktrees=$(get_config_value "$config" '.useWorktrees' 'false')
   
   if [[ "$use_worktrees" == "true" ]]; then
     local worktree_dir
-    worktree_dir=$(echo "$config" | jq -r '.worktreeDir // ".worktrees"')
-    # Ensure directory has trailing slash for gitignore
+    worktree_dir=$(get_config_value "$config" '.worktreeDir' '.worktrees')
     local gitignore_entry="${worktree_dir}/"
-    if ! grep -qF "$gitignore_entry" .gitignore 2>/dev/null; then
+    
+    if [[ ! -f ".gitignore" ]]; then
+      echo "$gitignore_entry" > .gitignore
+      echo "Created .gitignore with $gitignore_entry"
+    elif ! grep -qF "$gitignore_entry" .gitignore 2>/dev/null; then
       echo "$gitignore_entry" >> .gitignore
       echo "Added $gitignore_entry to .gitignore"
     else
       echo "$gitignore_entry already in .gitignore"
     fi
-  else
-    echo "useWorktrees is false; skipping worktree gitignore"
   fi
 }
 
-apply_config_to_agents() {
-  local config="$1"
+cmd_apply() {
+  check_dependencies
+  
+  local config
+  config=$(load_config)
+  
   echo "Applying config to agents..."
   
-  if [[ ! -d "$OPENCODE_AGENT_DIR" ]]; then
-    mkdir -p "$OPENCODE_AGENT_DIR"
-    echo "Created directory: $OPENCODE_AGENT_DIR"
-  fi
+  mkdir -p "$OPENCODE_DIR/agent"
   
   # Extract planner config
-  local planner_model
-  local planner_temp
-  local planner_reasoning
-  planner_model=$(echo "$config" | jq -r '.planner.model // "openai/gpt-5.2"')
-  planner_temp=$(echo "$config" | jq -r '.planner.temperature // 0')
-  planner_reasoning=$(echo "$config" | jq -r '.planner.reasoningEffort // empty')
+  local planner_model planner_temp planner_reasoning
+  planner_model=$(get_config_value "$config" '.planner.model' 'openai/gpt-5.2')
+  planner_temp=$(get_config_value "$config" '.planner.temperature' '0')
+  planner_reasoning=$(get_config_value "$config" '.planner.reasoningEffort' '')
   
-  # Extract worker config  
-  local worker_model
-  local worker_temp
-  local worker_reasoning
-  worker_model=$(echo "$config" | jq -r '.worker.model // "zai-coding-plan/glm-4.7"')
-  worker_temp=$(echo "$config" | jq -r '.worker.temperature // 0.2')
-  worker_reasoning=$(echo "$config" | jq -r '.worker.reasoningEffort // empty')
+  # Extract worker config
+  local worker_model worker_temp worker_reasoning
+  worker_model=$(get_config_value "$config" '.worker.model' 'zai-coding-plan/glm-4.7')
+  worker_temp=$(get_config_value "$config" '.worker.temperature' '0.2')
+  worker_reasoning=$(get_config_value "$config" '.worker.reasoningEffort' '')
   
-  # Rebuild agents from templates with model, temperature, and reasoningEffort from config
-  rebuild_agent_from_template "$PLANNER_AGENT" "planner" "$planner_model" "$planner_temp" "$planner_reasoning"
-  rebuild_agent_from_template "$WORKER_AGENT" "worker" "$worker_model" "$worker_temp" "$worker_reasoning"
+  # Rebuild agents
+  rebuild_agent_from_template "$OPENCODE_DIR/agent/os-tk-planner.md" "planner" "$planner_model" "$planner_temp" "$planner_reasoning"
+  rebuild_agent_from_template "$OPENCODE_DIR/agent/os-tk-worker.md" "worker" "$worker_model" "$worker_temp" "$worker_reasoning"
+  # Bootstrapper uses planner's model (strong reasoning) but has different permissions
+  rebuild_agent_from_template "$OPENCODE_DIR/agent/os-tk-bootstrapper.md" "bootstrapper" "$planner_model" "$planner_temp" "$planner_reasoning"
   
-  echo "  - Created/updated: $PLANNER_AGENT (model: $planner_model, temp: $planner_temp, reasoning: ${planner_reasoning:-none})"
-  echo "  - Created/updated: $WORKER_AGENT (model: $worker_model, temp: $worker_temp, reasoning: ${worker_reasoning:-none})"
+  echo "  - Created/updated: $OPENCODE_DIR/agent/os-tk-planner.md (model: $planner_model)"
+  echo "  - Created/updated: $OPENCODE_DIR/agent/os-tk-worker.md (model: $worker_model)"
+  echo "  - Created/updated: $OPENCODE_DIR/agent/os-tk-bootstrapper.md (model: $planner_model)"
+  
+  ensure_gitignore_worktrees "$config"
+  
+  echo ""
+  echo "Config applied."
 }
 
-# Fix 10: Proper flag parsing for --worktree and --simple
+# =============================================================================
+# INIT: Full initialization (sync + apply + AGENTS.md)
+# =============================================================================
 cmd_init() {
+  check_dependencies
+  
   local mode="worktree"  # default
   
   # Parse flags
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --worktree)
+      --worktree|worktree)
         mode="worktree"
         shift
         ;;
-      --simple)
-        mode="simple"
-        shift
-        ;;
-      worktree)
-        mode="worktree"
-        shift
-        ;;
-      simple)
+      --simple|simple)
         mode="simple"
         shift
         ;;
@@ -294,13 +554,16 @@ cmd_init() {
     esac
   done
   
+  # Create config if missing
   if [[ ! -f "$CONFIG_FILE" ]]; then
-    default_config > "$CONFIG_FILE"
+    mkdir -p "$CONFIG_DIR"
+    default_config "$VERSION" > "$CONFIG_FILE"
     echo "Created default config: $CONFIG_FILE"
   else
-    echo "Config already exists: $CONFIG_FILE (will preserve existing values)"
+    echo "Config already exists: $CONFIG_FILE (preserving existing values)"
   fi
   
+  # Apply mode
   if [[ "$mode" == "worktree" ]]; then
     echo "Enabling worktree mode (safe parallel)..."
     jq ".useWorktrees = true" "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
@@ -309,46 +572,113 @@ cmd_init() {
     jq ".useWorktrees = false" "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
   fi
   
-  local config
-  config=$(cat "$CONFIG_FILE")
-  ensure_gitignore_worktrees "$config"
-  apply_config_to_agents "$config"
+  echo ""
+  
+  # Sync .opencode from template
+  cmd_sync
+  
+  echo ""
+  
+  # Apply config to agents
+  cmd_apply
+  
+  echo ""
+  
+  # Update AGENTS.md
+  update_agents_md
   
   echo ""
   echo "os-tk initialized!"
   echo ""
   echo "Next steps:"
-  echo "  1. Edit $CONFIG_FILE to customize models/defaults"
-  echo "  2. Run: ./os-tk apply to update agents after config changes"
+  echo "  1. Review and edit .os-tk/config.json to customize models/settings"
+  echo "  2. Run: os-tk apply  (to regenerate agents after config changes)"
+  echo "  3. Commit: git add .os-tk .opencode AGENTS.md .gitignore"
+  echo ""
 }
 
-cmd_apply() {
-  if [[ ! -f "$CONFIG_FILE" ]]; then
-    echo "Error: Config file not found: $CONFIG_FILE"
-    echo "Run './os-tk init' first."
-    exit 1
+# =============================================================================
+# VERSION
+# =============================================================================
+cmd_version() {
+  echo "os-tk version $VERSION"
+  
+  if [[ -f "$CONFIG_FILE" ]]; then
+    local config
+    config=$(cat "$CONFIG_FILE")
+    local template_ref
+    template_ref=$(get_config_value "$config" '.templateRef' 'not set')
+    local template_repo
+    template_repo=$(get_config_value "$config" '.templateRepo' 'not set')
+    echo ""
+    echo "Project config:"
+    echo "  templateRepo: $template_repo"
+    echo "  templateRef:  $template_ref"
   fi
-  
-  local config
-  config=$(cat "$CONFIG_FILE")
-  ensure_gitignore_worktrees "$config"
-  apply_config_to_agents "$config"
-  
-  echo "Config applied to agents"
 }
 
+# =============================================================================
+# USAGE
+# =============================================================================
+usage() {
+  cat << EOF
+os-tk — OpenSpec + Ticket workflow CLI
+
+Usage: os-tk <command> [options]
+
+Commands:
+  init [--worktree|--simple]  Initialize project (sync + apply + update AGENTS.md)
+  sync                        Download .opencode/** from templateRepo@templateRef
+  apply                       Re-apply config to agents (no network, no AGENTS.md)
+  version                     Show os-tk version and project templateRef
+
+Options:
+  --version                   Show version only
+  --help                      Show this help
+
+Config:
+  Per-project config is stored in: .os-tk/config.json
+  Set templateRef to a tag (e.g., "v1.0.0") or "latest" for newest release.
+
+Examples:
+  os-tk init                  # First-time setup
+  os-tk init --simple         # Initialize without worktrees
+  os-tk sync                  # Update .opencode from template
+  os-tk apply                 # Regenerate agents after editing config
+
+EOF
+  exit 0
+}
+
+# =============================================================================
+# MAIN
+# =============================================================================
 main() {
   local command="${1:-}"
-  shift || true
   
   case "$command" in
     init)
+      shift
       cmd_init "$@"
+      ;;
+    sync)
+      cmd_sync
       ;;
     apply)
       cmd_apply
       ;;
+    version)
+      cmd_version
+      ;;
+    --version|-v)
+      echo "os-tk $VERSION"
+      ;;
+    --help|-h|help|"")
+      usage
+      ;;
     *)
+      echo "Unknown command: $command"
+      echo ""
       usage
       ;;
   esac

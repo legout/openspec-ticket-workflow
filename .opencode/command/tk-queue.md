@@ -23,7 +23,7 @@ Blocked tickets:
 
 ## Step 2: Check for active worktrees (if enabled)
 
-Read `os-tk.config.json` for `useWorktrees`.
+Read `.os-tk/config.json` for `useWorktrees`.
 
 If `useWorktrees: true`:
 - List active worktrees: `ls -d .worktrees/*/ 2>/dev/null`
@@ -76,7 +76,7 @@ Show tickets grouped:
 ### ALLOWED
 - `tk ready`, `tk blocked`, `tk show <id>`, `tk query <filter>`
 - `openspec list`, `openspec show <id>`
-- Reading `os-tk.config.json`
+- Reading `.os-tk/config.json`
 - Listing `.worktrees/` directory contents
 - Summarize, analyze, and recommend
 

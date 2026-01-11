@@ -4,7 +4,6 @@ description: OpenSpec + ticket worker (view-only vs execution)
 model: zai-coding-plan/glm-4.7
 mode: subagent
 temperature: 0.2
-reasoningEffort: medium
 permission:
   bash: allow
   skill: allow
