@@ -122,6 +122,12 @@ After running `os-tk init`, configuration is stored in `.os-tk/config.json`:
     "fallbackModels": ["minimax/MiniMax-M2.1"],
     "reasoningEffort": "none",
     "temperature": 0.2
+  },
+  "reviewer": {
+    "autoTrigger": false,
+    "categories": ["spec-compliance", "tests", "security", "quality"],
+    "createTicketsFor": ["error"],
+    "skipTags": ["no-review", "wip"]
   }
 }
 ```
@@ -134,6 +140,9 @@ After running `os-tk init`, configuration is stored in `.os-tk/config.json`:
 | `useWorktrees` | `true` for safe parallel (isolated branches), `false` for simple mode |
 | `planner.model` | Model for planning/view-only commands |
 | `worker.model` | Model for implementation commands |
+| `reviewer.autoTrigger` | `false` (manual /tk-review) or `true` (auto after /tk-done) |
+
+See [docs/configuration.md](docs/configuration.md) for complete reference.
 
 ### Updating the Workflow
 
@@ -158,6 +167,7 @@ Running `os-tk init` creates/updates these files in your project:
     os-tk-planner.md       # View-only planning agent
     os-tk-orchestrator.md  # Ticket design agent (strong reasoning)
     os-tk-worker.md        # Implementation agent
+    os-tk-reviewer.md      # Code review agent
   command/
     os-change.md           # View OpenSpec changes
     os-proposal.md         # Create proposals
@@ -165,6 +175,8 @@ Running `os-tk init` creates/updates these files in your project:
     tk-queue.md            # View ready/blocked
     tk-start.md            # Start implementation
     tk-done.md             # Close + sync + merge
+    tk-review.md           # Code review after completion
+    tk-run.md              # Autonomous execution loop
     tk-refactor.md         # Clean up backlog
   skill/
     openspec/SKILL.md      # OpenSpec expertise
@@ -247,6 +259,8 @@ When all tasks are complete, `/tk-done` auto-archives the OpenSpec change.
 | `/tk-queue [next\|all\|<change-id>]` | Show ready/blocked tickets |
 | `/tk-start <id...> [--parallel N]` | Start ticket(s) and implement |
 | `/tk-done <id> [change-id]` | Close ticket, sync progress, merge, push |
+| `/tk-review <id>` | Review completed ticket, create fix tickets if needed |
+| `/tk-run [--all] [--max-cycles N]` | Autonomous loop: start → done → review → repeat |
 | `/tk-refactor` | Merge duplicates, clean up backlog |
 
 ---
@@ -302,6 +316,63 @@ tk query | jq -r '.[] | select(.files_modify[]? == "src/api.ts") | .id'
 
 ---
 
+## Review Automation
+
+After completing a ticket, `/tk-review` analyzes the implementation against OpenSpec specs:
+
+```bash
+# Review a completed ticket
+/tk-review ab-101
+```
+
+Review checks:
+- **spec-compliance**: Does implementation match requirements?
+- **tests**: Are acceptance criteria covered?
+- **security**: Obvious vulnerabilities?
+- **quality**: Code patterns, DRY, error handling?
+
+If issues are found, fix tickets are automatically created and linked to the original.
+
+### Autonomous Mode (Ralph Mode)
+
+Two options depending on your use case:
+
+**Internal (small features, bug fixes):**
+```bash
+# Process one ticket through full lifecycle
+/tk-run T-123
+
+# Process entire epic
+/tk-run --epic otos-653a
+
+# Internal ralph mode (subtask isolation)
+/tk-run --ralph --max-cycles 10
+```
+
+**External (large greenfield projects):**
+```bash
+# Full process isolation per ticket
+./ralph.sh
+
+# Process only one epic
+./ralph.sh --epic otos-653a
+
+# Dry run to see what would execute
+./ralph.sh --dry-run
+```
+
+| Mode | Context Isolation | Use Case |
+|------|-------------------|----------|
+| `/tk-run --ralph` | Subtasks (partial) | Quick iterations, small changes |
+| `./ralph.sh` | Full process (complete) | Greenfield, multi-hour autonomous runs |
+
+Safety valves:
+- `--max-cycles N`: Stop after N iterations
+- Exits on empty queue
+- Stops if a critical (P0) fix ticket is created
+
+---
+
 ## Parallel Execution
 
 ### Safe Mode (default)
@@ -322,6 +393,7 @@ With `useWorktrees: false`, all work happens in the main working tree. Parallel 
 
 For more details, see the `docs/` folder:
 
+- [**Configuration Reference**](docs/configuration.md) — Complete guide to all config options
 - [**Model Selection Rationale**](docs/models.md) — Why we use strong reasoning models for planning and fast OSS models for implementation
 - [**Versioning and Releases**](docs/versioning.md) — SemVer scheme, release process, version pinning
 
