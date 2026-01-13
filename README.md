@@ -259,6 +259,47 @@ This workflow favors **3-8 deliverable-sized tickets** over fine-grained checkbo
 - **Cleaner Backlog:** `tk ready` stays readable.
 - **Flexibility:** Implementation details can evolve within a chunky ticket.
 
+## File-Aware Dependency Management
+
+Tickets can optionally include file predictions in their frontmatter to enable safer parallel execution:
+
+```yaml
+---
+id: ab-123
+status: open
+files-modify:
+  - src/api.ts
+  - src/utils.ts
+files-create:
+  - src/types/User.ts
+---
+```
+
+### How It Works
+
+1. **Prediction:** When creating tickets via `/tk-bootstrap`, the agent predicts which files will be modified/created.
+2. **Overlap Detection:** `/tk-queue --all` detects when multiple tickets would modify the same files.
+3. **Auto-Dependencies:** Overlapping tickets automatically get `tk dep` relationships added to serialize work.
+4. **Conflict Prevention:** `/tk-queue --next` skips tickets that would conflict with in-progress work.
+
+### Benefits
+
+- **Merge Safety:** Reduces merge conflicts when working in parallel
+- **Visibility:** See which files a ticket will touch before starting
+- **Automatic Serialization:** No need to manually track file-based dependencies
+
+### Querying File Predictions
+
+Use `tk query` to see file predictions:
+
+```bash
+# Show all file predictions for ready tickets
+tk ready | jq -r '.[] | select(.status == "open") | "\(.id): \(.files_modify // [])"'
+
+# Find tickets that modify a specific file
+tk query | jq -r '.[] | select(.files_modify[]? == "src/api.ts") | .id'
+```
+
 ---
 
 ## Parallel Execution
