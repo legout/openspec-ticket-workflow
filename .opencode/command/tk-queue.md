@@ -1,6 +1,6 @@
 ---
 description: Show tk ready/blocked and suggest next work item(s) (view-only, does NOT start work) [ulw]
-agent: os-tk-planner
+agent: os-tk-orchestrator
 ---
 
 # /tk-queue [FLAGS]
