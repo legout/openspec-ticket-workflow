@@ -79,6 +79,12 @@ default_config() {
     "fallbackModels": ["minimax/MiniMax-M2.1"],
     "reasoningEffort": "none",
     "temperature": 0.2
+  },
+  "reviewer": {
+    "autoTrigger": false,
+    "categories": ["spec-compliance", "tests", "security", "quality"],
+    "createTicketsFor": ["error"],
+    "skipTags": ["no-review", "wip"]
   }
 }
 JSON
@@ -143,6 +149,7 @@ OPENCODE_FILES=(
   "agent/os-tk-planner.md"
   "agent/os-tk-worker.md"
   "agent/os-tk-bootstrapper.md"
+  "command/os-breakdown.md"
   "command/os-change.md"
   "command/os-proposal.md"
   "command/tk-bootstrap.md"
@@ -222,13 +229,23 @@ This repo uses OpenSpec for spec-driven changes and tk for task execution tracki
 
 | Command | Purpose |
 |---------|---------|
+| `/os-breakdown <source> [--with-tickets]` | Break down PRD/plan into OpenSpec proposals |
 | `/os-proposal <id>` | Create/update OpenSpec change files |
 | `/os-change [id]` | View change status (view-only) |
 | `/tk-bootstrap <change-id> "<title>"` | Create tk epic + tasks from OpenSpec change |
-| `/tk-queue [next\|all\|<change-id>]` | Show ready/blocked tickets (view-only) |
+| `/tk-queue [next\\|all\\|<change-id>]` | Show ready/blocked tickets (view-only) |
 | `/tk-start <id...> [--parallel N]` | Start ticket(s) and implement |
 | `/tk-done <id> [change-id]` | Close + sync + archive + merge + push |
+| `/tk-review <id>` | Review completed ticket, create fix tickets if needed |
+| `/tk-run [--all] [--max-cycles N]` | Autonomous loop: start → done → review → repeat |
 | `/tk-refactor` | Merge duplicates, clean up backlog (optional) |
+
+## Review Automation
+
+- `/tk-review` analyzes merge commits against OpenSpec specs
+- Creates linked fix tickets (non-blocking) for issues found
+- Configure via `reviewer` section in `.os-tk/config.json`
+- `/tk-run` enables fully autonomous operation (Ralph mode)
 
 ## Parallel Execution
 
@@ -298,6 +315,10 @@ rebuild_agent_from_template() {
     # Bootstrapper can edit AGENTS.md but not code files (enforced by contract)
     edit_perm="allow"
     write_perm="allow"
+  elif [[ "$role" == "reviewer" ]]; then
+    # Reviewer can run tk commands but not edit code files
+    edit_perm="deny"
+    write_perm="deny"
   fi
   
   # Build optional reasoningEffort line (skip if empty, null, or "none")
@@ -462,6 +483,61 @@ When bootstrapping is complete:
 - Suggest next step: `/tk-queue` to see ready tickets
 AGENT
 
+  elif [[ "$role" == "reviewer" ]]; then
+    cat >> "$agent_file" << 'AGENT'
+
+You perform **post-implementation code review** analyzing completed work for quality issues.
+
+## Core Rules
+
+- Analyze git diffs and compare against OpenSpec specs.
+- Add review notes to tickets via `tk add-note`.
+- Create fix tickets via `tk create` and link them via `tk link`.
+- Never edit code files directly.
+- Never close tickets or start implementation.
+
+## Review Categories
+
+1. **spec-compliance**: Does implementation match OpenSpec requirements?
+2. **tests**: Are acceptance criteria covered by tests?
+3. **security**: Obvious vulnerabilities (injection, auth, secrets)
+4. **quality**: Code patterns, DRY violations, error handling
+
+## Allowed Actions
+
+- Read all files, specs, and ticket data
+- `git diff`, `git log`, `git show` to analyze changes
+- `tk add-note <id>` to add review summary
+- `tk create` to create fix tickets
+- `tk link` to link fix tickets to originals
+- `openspec show`, `openspec list` to read specs
+
+## Forbidden Actions
+
+- Editing code files (*.py, *.ts, *.js, etc.)
+- `tk start`, `tk close`
+- Implementing fixes (that's the worker's job)
+- Archiving OpenSpec
+
+## Output Format
+
+Review notes should follow this format:
+
+```markdown
+## Review (YYYY-MM-DD)
+✅ spec-compliance: passed
+⚠️ tests: Missing edge case test for null input
+❌ security: SQL injection risk in query builder
+
+Created: T-XXX (linked)
+```
+
+When review is complete:
+- Summarize findings by category
+- List any fix tickets created
+- If no issues: "Review passed, no issues found"
+AGENT
+
   else
     echo "Error: Unknown role: $role"
     exit 1
@@ -512,11 +588,20 @@ cmd_apply() {
   worker_temp=$(get_config_value "$config" '.worker.temperature' '0.2')
   worker_reasoning=$(get_config_value "$config" '.worker.reasoningEffort' '')
   
+  # Extract reviewer config (uses planner model by default)
+  local reviewer_model reviewer_temp reviewer_reasoning
+  reviewer_model=$(get_config_value "$config" '.reviewer.model' "$planner_model")
+  reviewer_temp=$(get_config_value "$config" '.reviewer.temperature' '0')
+  reviewer_reasoning=$(get_config_value "$config" '.reviewer.reasoningEffort' "$planner_reasoning")
+  
   # Rebuild agents
   rebuild_agent_from_template "$OPENCODE_DIR/agent/os-tk-planner.md" "planner" "$planner_model" "$planner_temp" "$planner_reasoning"
   rebuild_agent_from_template "$OPENCODE_DIR/agent/os-tk-worker.md" "worker" "$worker_model" "$worker_temp" "$worker_reasoning"
   # Bootstrapper uses planner's model (strong reasoning) but has different permissions
   rebuild_agent_from_template "$OPENCODE_DIR/agent/os-tk-bootstrapper.md" "bootstrapper" "$planner_model" "$planner_temp" "$planner_reasoning"
+  # Reviewer always generated (uses planner model by default)
+  rebuild_agent_from_template "$OPENCODE_DIR/agent/os-tk-reviewer.md" "reviewer" "$reviewer_model" "$reviewer_temp" "$reviewer_reasoning"
+  echo "  - Created/updated: $OPENCODE_DIR/agent/os-tk-reviewer.md (model: $reviewer_model)"
   
   echo "  - Created/updated: $OPENCODE_DIR/agent/os-tk-planner.md (model: $planner_model)"
   echo "  - Created/updated: $OPENCODE_DIR/agent/os-tk-worker.md (model: $worker_model)"

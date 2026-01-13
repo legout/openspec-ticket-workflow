@@ -16,13 +16,23 @@ This repo uses OpenSpec for spec-driven changes and tk for task execution tracki
 
 | Command | Purpose |
 |---------|---------|
+| `/os-breakdown <source> [--with-tickets]` | Break down PRD/plan into OpenSpec proposals |
 | `/os-proposal <id>` | Create/update OpenSpec change files |
 | `/os-change [id]` | View change status (view-only) |
 | `/tk-bootstrap <change-id> "<title>"` | Create tk epic + tasks from OpenSpec change |
 | `/tk-queue [next\|all\|<change-id>]` | Show ready/blocked tickets (view-only) |
 | `/tk-start <id...> [--parallel N]` | Start ticket(s) and implement |
 | `/tk-done <id> [change-id]` | Close + sync + archive + merge + push |
+| `/tk-review <id>` | Review completed ticket, create fix tickets if needed |
+| `/tk-run [--all] [--max-cycles N]` | Autonomous loop: start → done → review → repeat |
 | `/tk-refactor` | Merge duplicates, clean up backlog (optional) |
+
+## Review Automation
+
+- `/tk-review` analyzes merge commits against OpenSpec specs
+- Creates linked fix tickets (non-blocking) for issues found
+- Configure via `reviewer` section in `.os-tk/config.json`
+- `/tk-run` enables fully autonomous operation (Ralph mode)
 
 ## Parallel Execution
 
