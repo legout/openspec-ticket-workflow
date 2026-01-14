@@ -100,13 +100,34 @@ main() {
     "temperature": 0.2
   },
   "reviewer": {
-    "model": "openai/gpt-5.2",
-    "reasoningEffort": "high",
-    "temperature": 0,
     "autoTrigger": false,
     "categories": ["spec-compliance", "tests", "security", "quality"],
     "createTicketsFor": ["error"],
-    "skipTags": ["no-review", "wip"]
+    "skipTags": ["no-review", "wip"],
+    "scouts": [
+      { "id": "opus45", "model": "google/antigravity-claude-opus-4-5-thinking", "reasoningEffort": "high", "temperature": 0 },
+      { "id": "gpt52",  "model": "openai/gpt-5.2-codex", "reasoningEffort": "high", "temperature": 0 },
+      { "id": "mini",   "model": "openai/gpt-5.1-codex-mini", "reasoningEffort": "medium", "temperature": 0 },
+      { "id": "grok",   "model": "opencode/grok-fast", "reasoningEffort": "none", "temperature": 0 }
+    ],
+    "adaptive": {
+      "enabled": true,
+      "maxParallelScouts": 3,
+      "thresholds": {
+        "small":  { "maxFiles": 4,  "maxChangedLines": 200 },
+        "medium": { "maxFiles": 12, "maxChangedLines": 800 }
+      },
+      "defaults": {
+        "small":  ["grok", "mini"],
+        "medium": ["grok", "gpt52"],
+        "large":  ["grok", "gpt52", "opus45"]
+      }
+    },
+    "aggregatorStrong": {
+      "model": "openai/gpt-5.2",
+      "reasoningEffort": "medium",
+      "temperature": 0
+    }
   }
 }
 JSON

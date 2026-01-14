@@ -143,13 +143,18 @@ After running `os-tk init`, configuration is stored in `.os-tk/config.json`:
     "temperature": 0.2
   },
   "reviewer": {
-    "model": "openai/gpt-5.2",
-    "reasoningEffort": "high",
-    "temperature": 0,
     "autoTrigger": false,
     "categories": ["spec-compliance", "tests", "security", "quality"],
     "createTicketsFor": ["error"],
-    "skipTags": ["no-review", "wip"]
+    "skipTags": ["no-review", "wip"],
+    "scouts": [
+      { "id": "opus45", "model": "google/antigravity-claude-opus-4-5-thinking", "reasoningEffort": "high" },
+      { "id": "gpt52",  "model": "openai/gpt-5.2-codex", "reasoningEffort": "high" },
+      { "id": "mini",   "model": "openai/gpt-5.1-codex-mini", "reasoningEffort": "medium" },
+      { "id": "grok",   "model": "opencode/grok-fast" }
+    ],
+    "adaptive": { "enabled": true },
+    "aggregatorStrong": { "model": "openai/gpt-5.2", "reasoningEffort": "medium" }
   }
 }
 ```
@@ -162,7 +167,8 @@ After running `os-tk init`, configuration is stored in `.os-tk/config.json`:
 | `useWorktrees` | `true` for safe parallel (isolated branches), `false` for simple mode |
 | `planner.model` | Model for planning/view-only commands |
 | `worker.model` | Model for implementation commands |
-| `reviewer.model` | Model used for code review commands |
+| `reviewer.scouts` | List of models for parallel review scouting |
+| `reviewer.adaptive` | Enable adaptive (complexity-based) review |
 | `reviewer.autoTrigger` | `false` (manual /tk-review) or `true` (auto after /tk-done) |
 
 See [docs/configuration.md](docs/configuration.md) for complete reference.

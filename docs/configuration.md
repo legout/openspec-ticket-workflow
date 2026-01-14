@@ -30,13 +30,33 @@ The os-tk workflow is configured via `.os-tk/config.json`. This document explain
     "temperature": 0.2
   },
   "reviewer": {
-    "model": "openai/gpt-5.2",
-    "reasoningEffort": "high",
-    "temperature": 0,
     "autoTrigger": false,
     "categories": ["spec-compliance", "tests", "security", "quality"],
     "createTicketsFor": ["error"],
-    "skipTags": ["no-review", "wip"]
+    "skipTags": ["no-review", "wip"],
+    "scouts": [
+      { "id": "opus45", "model": "google/antigravity-claude-opus-4-5-thinking", "reasoningEffort": "high" },
+      { "id": "gpt52",  "model": "openai/gpt-5.2-codex", "reasoningEffort": "high" },
+      { "id": "mini",   "model": "openai/gpt-5.1-codex-mini", "reasoningEffort": "medium" },
+      { "id": "grok",   "model": "opencode/grok-fast" }
+    ],
+    "adaptive": {
+      "enabled": true,
+      "maxParallelScouts": 3,
+      "thresholds": {
+        "small":  { "maxFiles": 4,  "maxChangedLines": 200 },
+        "medium": { "maxFiles": 12, "maxChangedLines": 800 }
+      },
+      "defaults": {
+        "small":  ["grok", "mini"],
+        "medium": ["grok", "gpt52"],
+        "large":  ["grok", "gpt52", "opus45"]
+      }
+    },
+    "aggregatorStrong": {
+      "model": "openai/gpt-5.2",
+      "reasoningEffort": "medium"
+    }
   }
 }
 ```
@@ -260,29 +280,39 @@ Tickets with any of these tags will skip review entirely.
 
 ---
 
-### `reviewer.model`
-**Type:** `string`  
-**Default:** `"openai/gpt-5.2"`
+### `reviewer.scouts`
+**Type:** `object[]`  
+**Default:** (List of 4 models including Opus 4.5, GPT-5.2, Mini, Grok)
 
-Model used for code review. High-quality models with strong reasoning are recommended to catch subtle bugs.
+List of models used for parallel review "scouting". Each scout is read-only and emits findings for aggregation.
 
-**Examples:**
-- `"openai/gpt-5.2"` — OpenAI GPT-5.2 (default)
-- `"anthropic/claude-opus-4-5-20250514"` — Claude Opus 4.5
-- `"anthropic/claude-sonnet-4-20250514"` — Claude Sonnet 4
+| Field | Description |
+|-------|-------------|
+| `id` | Short identifier (e.g., `"opus45"`) |
+| `model` | AI model string |
+| `reasoningEffort` | `"none"`, `"low"`, `"medium"`, `"high"` |
 
-### `reviewer.reasoningEffort`
-**Type:** `string`  
-**Default:** `"high"`  
-**Valid values:** `"none"`, `"low"`, `"medium"`, `"high"`
+### `reviewer.adaptive`
+**Type:** `object`
 
-Sets the reasoning level for the reviewer model. Higher effort is better for deep code analysis.
+Configures the adaptive review pipeline which chooses scouts and aggregators based on change complexity.
 
-### `reviewer.temperature`
-**Type:** `number`  
-**Default:** `0`
+| Field | Description |
+|-------|-------------|
+| `enabled` | `true` to use complexity heuristics |
+| `maxParallelScouts` | Maximum concurrent scout subtasks |
+| `thresholds` | Limits for "small" and "medium" buckets |
+| `defaults` | Which scout IDs to run per bucket |
 
-Low temperature ensures more deterministic and stable review output.
+### `reviewer.aggregatorStrong`
+**Type:** `object`
+
+Configures the high-quality aggregator used for large or risky reviews.
+
+| Field | Description |
+|-------|-------------|
+| `model` | AI model string (default: `"openai/gpt-5.2"`) |
+| `reasoningEffort` | Default: `"medium"` |
 
 ---
 
@@ -310,32 +340,35 @@ This regenerates the agent files (`.opencode/agent/*.md`) with the updated model
 }
 ```
 
-### Maximum Quality
+### Maximum Quality (Multi-Model)
 ```json
 {
   "useWorktrees": true,
-  "planner": { "model": "anthropic/claude-opus-4-5-20250514", "reasoningEffort": "high", "temperature": 0 },
-  "worker": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.1 },
+  "planner": { "model": "openai/gpt-5.2", "reasoningEffort": "high" },
+  "worker": { "model": "zai-coding-plan/glm-4.7" },
   "reviewer": {
-    "model": "anthropic/claude-opus-4-5-20250514",
-    "reasoningEffort": "high",
     "autoTrigger": true,
-    "categories": ["spec-compliance", "tests", "security", "quality"],
-    "createTicketsFor": ["error", "warning"]
+    "scouts": [
+      { "id": "opus", "model": "google/antigravity-claude-opus-4-5-thinking", "reasoningEffort": "high" },
+      { "id": "gpt52", "model": "openai/gpt-5.2-codex", "reasoningEffort": "high" }
+    ],
+    "aggregatorStrong": { "model": "openai/gpt-5.2", "reasoningEffort": "medium" }
   }
 }
 ```
 
-### Cost-Optimized (Strong Planning, Cheap Execution)
+### Cost-Optimized (Adaptive)
 ```json
 {
   "planner": { "model": "openai/gpt-5.2", "reasoningEffort": "high" },
-  "worker": { "model": "zai-coding-plan/glm-4.7", "fallbackModels": ["minimax/MiniMax-M2.1"] },
+  "worker": { "model": "zai-coding-plan/glm-4.7" },
   "reviewer": { 
-    "model": "openai/gpt-5.2",
-    "reasoningEffort": "high",
-    "autoTrigger": true, 
-    "createTicketsFor": ["error"] 
+    "autoTrigger": true,
+    "adaptive": { "enabled": true },
+    "scouts": [
+      { "id": "grok", "model": "opencode/grok-fast" },
+      { "id": "mini", "model": "openai/gpt-5.1-codex-mini" }
+    ]
   }
 }
 ```
