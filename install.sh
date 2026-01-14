@@ -98,6 +98,15 @@ main() {
     "fallbackModels": ["minimax/MiniMax-M2.1"],
     "reasoningEffort": "none",
     "temperature": 0.2
+  },
+  "reviewer": {
+    "model": "openai/gpt-5.2",
+    "reasoningEffort": "high",
+    "temperature": 0,
+    "autoTrigger": false,
+    "categories": ["spec-compliance", "tests", "security", "quality"],
+    "createTicketsFor": ["error"],
+    "skipTags": ["no-review", "wip"]
   }
 }
 JSON

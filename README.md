@@ -143,6 +143,9 @@ After running `os-tk init`, configuration is stored in `.os-tk/config.json`:
     "temperature": 0.2
   },
   "reviewer": {
+    "model": "openai/gpt-5.2",
+    "reasoningEffort": "high",
+    "temperature": 0,
     "autoTrigger": false,
     "categories": ["spec-compliance", "tests", "security", "quality"],
     "createTicketsFor": ["error"],
@@ -159,6 +162,7 @@ After running `os-tk init`, configuration is stored in `.os-tk/config.json`:
 | `useWorktrees` | `true` for safe parallel (isolated branches), `false` for simple mode |
 | `planner.model` | Model for planning/view-only commands |
 | `worker.model` | Model for implementation commands |
+| `reviewer.model` | Model used for code review commands |
 | `reviewer.autoTrigger` | `false` (manual /tk-review) or `true` (auto after /tk-done) |
 
 See [docs/configuration.md](docs/configuration.md) for complete reference.

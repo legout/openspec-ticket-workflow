@@ -1,9 +1,10 @@
 ---
 name: os-tk-worker
-description: OpenSpec + ticket worker (implementation)
-model: anthropic/claude-sonnet-4
+description: OpenSpec + ticket worker (view-only vs execution)
+model: zai-coding-plan/glm-4.7
 mode: subagent
-temperature: 0
+temperature: 0.75
+
 permission:
   bash: allow
   skill: allow

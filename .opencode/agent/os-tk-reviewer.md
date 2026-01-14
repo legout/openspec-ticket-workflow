@@ -1,7 +1,7 @@
 ---
 name: os-tk-reviewer
-description: OpenSpec + ticket reviewer (read-only review)
-model: anthropic/claude-sonnet-4
+description: OpenSpec + ticket reviewer (view-only vs execution)
+model: openai/gpt-5.2
 mode: subagent
 temperature: 0
 reasoningEffort: high

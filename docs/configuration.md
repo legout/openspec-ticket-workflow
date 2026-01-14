@@ -30,6 +30,9 @@ The os-tk workflow is configured via `.os-tk/config.json`. This document explain
     "temperature": 0.2
   },
   "reviewer": {
+    "model": "openai/gpt-5.2",
+    "reasoningEffort": "high",
+    "temperature": 0,
     "autoTrigger": false,
     "categories": ["spec-compliance", "tests", "security", "quality"],
     "createTicketsFor": ["error"],
@@ -257,6 +260,32 @@ Tickets with any of these tags will skip review entirely.
 
 ---
 
+### `reviewer.model`
+**Type:** `string`  
+**Default:** `"openai/gpt-5.2"`
+
+Model used for code review. High-quality models with strong reasoning are recommended to catch subtle bugs.
+
+**Examples:**
+- `"openai/gpt-5.2"` — OpenAI GPT-5.2 (default)
+- `"anthropic/claude-opus-4-5-20250514"` — Claude Opus 4.5
+- `"anthropic/claude-sonnet-4-20250514"` — Claude Sonnet 4
+
+### `reviewer.reasoningEffort`
+**Type:** `string`  
+**Default:** `"high"`  
+**Valid values:** `"none"`, `"low"`, `"medium"`, `"high"`
+
+Sets the reasoning level for the reviewer model. Higher effort is better for deep code analysis.
+
+### `reviewer.temperature`
+**Type:** `number`  
+**Default:** `0`
+
+Low temperature ensures more deterministic and stable review output.
+
+---
+
 ## After Changing Config
 
 After editing `.os-tk/config.json`, run:
@@ -288,6 +317,8 @@ This regenerates the agent files (`.opencode/agent/*.md`) with the updated model
   "planner": { "model": "anthropic/claude-opus-4-5-20250514", "reasoningEffort": "high", "temperature": 0 },
   "worker": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.1 },
   "reviewer": {
+    "model": "anthropic/claude-opus-4-5-20250514",
+    "reasoningEffort": "high",
     "autoTrigger": true,
     "categories": ["spec-compliance", "tests", "security", "quality"],
     "createTicketsFor": ["error", "warning"]
@@ -300,7 +331,12 @@ This regenerates the agent files (`.opencode/agent/*.md`) with the updated model
 {
   "planner": { "model": "openai/gpt-5.2", "reasoningEffort": "high" },
   "worker": { "model": "zai-coding-plan/glm-4.7", "fallbackModels": ["minimax/MiniMax-M2.1"] },
-  "reviewer": { "autoTrigger": true, "createTicketsFor": ["error"] }
+  "reviewer": { 
+    "model": "openai/gpt-5.2",
+    "reasoningEffort": "high",
+    "autoTrigger": true, 
+    "createTicketsFor": ["error"] 
+  }
 }
 ```
 
