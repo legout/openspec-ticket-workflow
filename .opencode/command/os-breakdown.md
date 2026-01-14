@@ -1,6 +1,6 @@
 ---
 description: Break down a project plan/PRD into comprehensive OpenSpec proposals [ulw]
-agent: os-tk-orchestrator
+agent: os-tk-planner
 permission:
   skill: allow
   bash: allow

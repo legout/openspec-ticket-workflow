@@ -4,9 +4,9 @@ A lightweight, agent-friendly workflow that combines:
 
 - **OpenSpec** for spec-driven changes (proposal -> apply -> archive)
 - **ticket (`tk`)** for git-backed task tracking (ready/blocked queues + dependencies)
-- **OpenCode** slash commands for multi-agent orchestration
+- **Multi-agent support** for OpenCode, Claude Code, Factory/Droid, and more
 
-This repo is a template. Use `os-tk` to install the workflow into any project, giving *any* coding agent consistent operating rules via `AGENTS.md`, while OpenCode users get slash commands.
+This repo is a template. Use `os-tk` to install the workflow into any project, giving *any* coding agent consistent operating rules via `AGENTS.md`, while agent-specific platforms get their own commands and skills.
 
 ---
 
@@ -14,17 +14,19 @@ This repo is a template. Use `os-tk` to install the workflow into any project, g
 
 ```bash
 # 1. Install os-tk (one-time, global)
-curl -fsSL https://raw.githubusercontent.com/legout/openspec-ticket-opencode-starter/v0.1.0/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/legout/openspec-ticket-opencode-starter/v0.2.0/install.sh | bash
 
 # 2. Add ~/.local/bin to PATH (if not already)
 export PATH="$HOME/.local/bin:$PATH"
 
 # 3. Initialize the workflow in your project
 cd your-project
-os-tk init
+os-tk init                              # OpenCode only (default)
+os-tk init --agent opencode,claude      # OpenCode + Claude Code
+os-tk init --agent all                  # All platforms
 
 # 4. Commit the workflow files
-git add .os-tk .opencode AGENTS.md .gitignore
+git add .os-tk .opencode AGENTS.md .gitignore  # adjust based on selected agents
 git commit -m "Add OpenSpec + ticket workflow"
 ```
 
@@ -49,10 +51,10 @@ After installing OpenSpec, run `openspec init` in your project.
 Install from a specific release for reproducibility:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/legout/openspec-ticket-opencode-starter/v0.1.0/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/legout/openspec-ticket-opencode-starter/v0.2.0/install.sh | bash
 ```
 
-Replace `v0.1.0` with the desired version tag.
+Replace `v0.2.0` with the desired version tag.
 
 ### Option 2: Manual Install
 
@@ -60,7 +62,7 @@ Download the script directly:
 
 ```bash
 mkdir -p ~/.local/bin
-curl -fsSL https://raw.githubusercontent.com/legout/openspec-ticket-opencode-starter/v0.1.0/os-tk -o ~/.local/bin/os-tk
+curl -fsSL https://raw.githubusercontent.com/legout/openspec-ticket-opencode-starter/v0.2.0/os-tk -o ~/.local/bin/os-tk
 chmod +x ~/.local/bin/os-tk
 ```
 
@@ -87,10 +89,27 @@ set -gx PATH $HOME/.local/bin $PATH
 
 | Command | Description |
 |---------|-------------|
-| `os-tk init [--worktree\|--simple]` | Initialize project (sync + apply + update AGENTS.md) |
-| `os-tk sync` | Download `.opencode/**` from templateRepo@templateRef |
-| `os-tk apply` | Re-apply config to agents (no network, no AGENTS.md) |
+| `os-tk init [options]` | Initialize project (sync + apply + update AGENTS.md) |
+| `os-tk sync [--agent <platforms>]` | Download agent files from templateRepo@templateRef |
+| `os-tk apply [--agent <platforms>]` | Re-apply config to agents (no network, no AGENTS.md) |
 | `os-tk version` | Show os-tk version and project templateRef |
+
+### Agent Platform Options
+
+| Platform | Directory | Description |
+|----------|-----------|-------------|
+| `opencode` | `.opencode/` | OpenCode format (default) |
+| `claude` | `.claude/` | Claude Code format |
+| `droid` | `.factory/` | Factory/Droid format |
+| `universal` | `.agent/` | Platform-agnostic format |
+| `all` | All above | Install all platforms |
+
+Examples:
+```bash
+os-tk init --agent opencode,claude    # Multiple platforms
+os-tk sync --agent droid              # Sync specific platform
+os-tk apply --agent all               # Apply config to all
+```
 
 ---
 
@@ -162,10 +181,10 @@ Running `os-tk init` creates/updates these files in your project:
 .os-tk/
   config.json              # Project config (commit this)
 
+# OpenCode (--agent opencode, default)
 .opencode/
   agent/
-    os-tk-planner.md       # View-only planning agent
-    os-tk-orchestrator.md  # Ticket design agent (strong reasoning)
+    os-tk-planner.md       # Planning + orchestration agent
     os-tk-worker.md        # Implementation agent
     os-tk-reviewer.md      # Code review agent
   command/
@@ -181,8 +200,27 @@ Running `os-tk init` creates/updates these files in your project:
   skill/
     openspec/SKILL.md      # OpenSpec expertise
     ticket/SKILL.md        # tk expertise
+    os-tk-workflow/SKILL.md # Workflow decision trees
 
-AGENTS.md                  # Agent-agnostic workflow rules
+# Claude Code (--agent claude)
+.claude/
+  agents/planner.md, worker.md, reviewer.md
+  commands/tk/start.md, done.md, queue.md, ...
+  skills/openspec/, ticket/, os-tk-workflow/
+
+# Factory/Droid (--agent droid)
+.factory/
+  droids/planner.md, worker.md, reviewer.md
+  commands/tk-start.md, tk-done.md, ...
+  skills/openspec/, ticket/, os-tk-workflow/
+
+# Universal (--agent universal)
+.agent/
+  agents/planner.md, worker.md, reviewer.md
+  commands/tk-start.md, tk-done.md, ...
+  skills/openspec.md, ticket.md, os-tk-workflow.md
+
+AGENTS.md                  # Agent-agnostic workflow rules (all platforms)
 ```
 
 **Commit these files** to share the workflow with your team.
@@ -393,6 +431,7 @@ With `useWorktrees: false`, all work happens in the main working tree. Parallel 
 
 For more details, see the `docs/` folder:
 
+- [**Multi-Agent Support**](docs/multi-agent-support.md) — Platform comparison, installation, and configuration
 - [**Configuration Reference**](docs/configuration.md) — Complete guide to all config options
 - [**Model Selection Rationale**](docs/models.md) — Why we use strong reasoning models for planning and fast OSS models for implementation
 - [**Versioning and Releases**](docs/versioning.md) — SemVer scheme, release process, version pinning

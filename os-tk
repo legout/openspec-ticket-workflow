@@ -17,7 +17,7 @@ set -euo pipefail
 # =============================================================================
 # VERSION (single source of truth)
 # =============================================================================
-VERSION="0.1.0"
+VERSION="0.2.0"
 
 # =============================================================================
 # PATHS
@@ -143,12 +143,14 @@ resolve_template_ref() {
 }
 
 # =============================================================================
-# SYNC: Download .opencode/** from template repo
+# SYNC: Download files from template repo for each agent platform
 # =============================================================================
+
+# OpenCode files (canonical source)
 OPENCODE_FILES=(
   "agent/os-tk-planner.md"
   "agent/os-tk-worker.md"
-  "agent/os-tk-bootstrapper.md"
+  "agent/os-tk-reviewer.md"
   "command/os-breakdown.md"
   "command/os-change.md"
   "command/os-proposal.md"
@@ -156,13 +158,217 @@ OPENCODE_FILES=(
   "command/tk-done.md"
   "command/tk-queue.md"
   "command/tk-refactor.md"
+  "command/tk-review.md"
+  "command/tk-run.md"
   "command/tk-start.md"
   "skill/openspec/SKILL.md"
   "skill/ticket/SKILL.md"
+  "skill/os-tk-workflow/SKILL.md"
 )
+
+# Claude Code files
+CLAUDE_FILES=(
+  "agents/planner.md"
+  "agents/worker.md"
+  "agents/reviewer.md"
+  "commands/os/breakdown.md"
+  "commands/os/change.md"
+  "commands/os/proposal.md"
+  "commands/tk/bootstrap.md"
+  "commands/tk/start.md"
+  "commands/tk/done.md"
+  "commands/tk/queue.md"
+  "commands/tk/review.md"
+  "commands/tk/run.md"
+  "commands/tk/refactor.md"
+  "skills/openspec/SKILL.md"
+  "skills/ticket/SKILL.md"
+  "skills/os-tk-workflow/SKILL.md"
+)
+
+# Factory/Droid files
+DROID_FILES=(
+  "droids/planner.md"
+  "droids/worker.md"
+  "droids/reviewer.md"
+  "commands/os-breakdown.md"
+  "commands/os-change.md"
+  "commands/os-proposal.md"
+  "commands/tk-bootstrap.md"
+  "commands/tk-start.md"
+  "commands/tk-done.md"
+  "commands/tk-queue.md"
+  "commands/tk-review.md"
+  "commands/tk-run.md"
+  "commands/tk-refactor.md"
+  "skills/openspec/SKILL.md"
+  "skills/ticket/SKILL.md"
+  "skills/os-tk-workflow/SKILL.md"
+)
+
+# Universal .agent files
+UNIVERSAL_FILES=(
+  "agents/planner.md"
+  "agents/worker.md"
+  "agents/reviewer.md"
+  "commands/os-breakdown.md"
+  "commands/os-change.md"
+  "commands/os-proposal.md"
+  "commands/tk-bootstrap.md"
+  "commands/tk-start.md"
+  "commands/tk-done.md"
+  "commands/tk-queue.md"
+  "commands/tk-review.md"
+  "commands/tk-run.md"
+  "commands/tk-refactor.md"
+  "skills/openspec.md"
+  "skills/ticket.md"
+  "skills/os-tk-workflow.md"
+)
+
+# Default agent platforms (comma-separated)
+DEFAULT_AGENTS="opencode"
+
+# Parse --agent flag and return array of agents
+parse_agents() {
+  local input="${1:-$DEFAULT_AGENTS}"
+  
+  # Handle "all" keyword
+  if [[ "$input" == "all" ]]; then
+    echo "opencode,claude,droid,universal"
+    return
+  fi
+  
+  # Validate each agent
+  local IFS=','
+  for agent in $input; do
+    case "$agent" in
+      opencode|claude|droid|universal) ;;
+      *)
+        echo "Error: Unknown agent platform: $agent" >&2
+        echo "Valid options: opencode, claude, droid, universal, all" >&2
+        exit 1
+        ;;
+    esac
+  done
+  
+  echo "$input"
+}
+
+# Get target directory for an agent platform
+get_agent_dir() {
+  local agent="$1"
+  case "$agent" in
+    opencode)  echo ".opencode" ;;
+    claude)    echo ".claude" ;;
+    droid)     echo ".factory" ;;
+    universal) echo ".agent" ;;
+    *)
+      echo "Error: Unknown agent: $agent" >&2
+      return 1
+      ;;
+  esac
+}
+
+# Get source directory in template repo for an agent platform
+get_template_dir() {
+  local agent="$1"
+  case "$agent" in
+    opencode)  echo ".opencode" ;;
+    claude)    echo ".claude" ;;
+    droid)     echo ".factory" ;;
+    universal) echo ".agent" ;;
+    *)
+      echo "Error: Unknown agent: $agent" >&2
+      return 1
+      ;;
+  esac
+}
+
+# Get file array for an agent platform
+get_agent_files() {
+  local agent="$1"
+  case "$agent" in
+    opencode)  echo "${OPENCODE_FILES[@]}" ;;
+    claude)    echo "${CLAUDE_FILES[@]}" ;;
+    droid)     echo "${DROID_FILES[@]}" ;;
+    universal) echo "${UNIVERSAL_FILES[@]}" ;;
+    *)
+      echo "Error: Unknown agent: $agent" >&2
+      return 1
+      ;;
+  esac
+}
+
+# Sync files for a single agent platform
+sync_agent_platform() {
+  local agent="$1"
+  local base_url="$2"
+  
+  local target_dir template_dir
+  target_dir=$(get_agent_dir "$agent")
+  template_dir=$(get_template_dir "$agent")
+  
+  echo "Syncing $agent → $target_dir/"
+  
+  # Get file list based on agent
+  local files
+  case "$agent" in
+    opencode)  files=("${OPENCODE_FILES[@]}") ;;
+    claude)    files=("${CLAUDE_FILES[@]}") ;;
+    droid)     files=("${DROID_FILES[@]}") ;;
+    universal) files=("${UNIVERSAL_FILES[@]}") ;;
+  esac
+  
+  # Create all required directories
+  for file in "${files[@]}"; do
+    local dir
+    dir=$(dirname "$target_dir/$file")
+    mkdir -p "$dir"
+  done
+  
+  # Download files
+  local failed=0
+  for file in "${files[@]}"; do
+    local url="$base_url/$template_dir/$file"
+    local dest="$target_dir/$file"
+    
+    if curl -sSfL "$url" -o "$dest" 2>/dev/null; then
+      echo "  [ok] $dest"
+    else
+      echo "  [FAIL] $dest"
+      ((failed++)) || true
+    fi
+  done
+  
+  if [[ $failed -gt 0 ]]; then
+    echo "  Warning: $failed file(s) failed for $agent"
+  fi
+  
+  return $failed
+}
 
 cmd_sync() {
   check_dependencies
+  
+  local agents_input="$DEFAULT_AGENTS"
+  
+  # Parse flags
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --agent|-a)
+        agents_input="$2"
+        shift 2
+        ;;
+      *)
+        echo "Unknown option for sync: $1"
+        usage
+        ;;
+    esac
+  done
+  
+  local agents
+  agents=$(parse_agents "$agents_input")
   
   local config
   config=$(load_config)
@@ -175,33 +381,24 @@ cmd_sync() {
   
   local base_url="https://raw.githubusercontent.com/$repo/$ref"
   
-  echo "Syncing .opencode from $repo@$ref..."
+  echo "Syncing from $repo@$ref"
+  echo "Agents: $agents"
   echo ""
   
-  # Create directories
-  mkdir -p "$OPENCODE_DIR/agent" "$OPENCODE_DIR/command" "$OPENCODE_DIR/skill/openspec" "$OPENCODE_DIR/skill/ticket"
-  
-  # Download files (overwrites existing)
-  local failed=0
-  for file in "${OPENCODE_FILES[@]}"; do
-    local url="$base_url/.opencode/$file"
-    local dest="$OPENCODE_DIR/$file"
-    
-    if curl -sSfL "$url" -o "$dest" 2>/dev/null; then
-      echo "  [ok] $dest"
-    else
-      echo "  [FAIL] $dest (from $url)"
-      ((failed++)) || true
-    fi
+  # Sync each selected agent platform
+  local total_failed=0
+  local IFS=','
+  for agent in $agents; do
+    sync_agent_platform "$agent" "$base_url"
+    ((total_failed += $?)) || true
+    echo ""
   done
   
-  if [[ $failed -gt 0 ]]; then
-    echo ""
-    echo "Warning: $failed file(s) failed to download."
-    echo "Check that templateRef '$ref' exists and contains these files."
+  if [[ $total_failed -gt 0 ]]; then
+    echo "Warning: Some files failed to download."
+    echo "Check that templateRef '$ref' exists and contains all required files."
   fi
   
-  echo ""
   echo "Sync complete."
   
   # Also update AGENTS.md block
@@ -309,10 +506,7 @@ rebuild_agent_from_template() {
   local edit_perm="allow"
   local write_perm="allow"
   if [[ "$role" == "planner" ]]; then
-    edit_perm="deny"
-    write_perm="deny"
-  elif [[ "$role" == "bootstrapper" ]]; then
-    # Bootstrapper can edit AGENTS.md but not code files (enforced by contract)
+    # Planner can create tickets (edit AGENTS.md) but contract restricts code editing
     edit_perm="allow"
     write_perm="allow"
   elif [[ "$role" == "reviewer" ]]; then
@@ -353,50 +547,76 @@ AGENT
   if [[ "$role" == "planner" ]]; then
     cat >> "$agent_file" << 'AGENT'
 
-You coordinate **planning and review** phases of the workflow. You **NEVER implement** code.
+You coordinate **planning, bootstrapping, and orchestration** phases of the workflow. You **NEVER implement code** but you CAN create tickets and spawn worker subtasks.
 
-## Core Rules
+## Core Responsibilities
 
-- Read-only operations only (viewing status, showing specs, generating plans).
-- Never edit files, write code, run tests, or implement plans.
-- Never spawn worker subtasks.
-- All planning commands (os-change, tk-queue, tk-bootstrap) use this agent.
+1. **Planning** - Analyze specs, view status, recommend actions
+2. **Bootstrapping** - Design and create 3-8 chunky tickets per epic
+3. **Orchestration** - Spawn parallel worker subtasks for execution
 
 ## Command Precedence
 
-When invoked via a command (e.g., `/os-change`, `/tk-queue`):
+When invoked via a command (e.g., `/os-change`, `/tk-queue`, `/tk-bootstrap`):
 - The command markdown file is the HIGHEST PRIORITY contract.
 - If any conflict between this description, skills, or general rules and the command's contract:
   - **The command contract wins. Always.**
 - If a command says STOP -> you STOP.
 
-## View-Only Contracts
+## Allowed Actions
 
-For view-only commands, these actions are **FORBIDDEN**:
+| Category | Commands |
+|----------|----------|
+| **OpenSpec** | `openspec list`, `openspec show <id>`, `openspec validate <id>` |
+| **Tickets (read)** | `tk ready`, `tk blocked`, `tk show <id>`, `tk query <filter>` |
+| **Tickets (write)** | `tk create`, `tk dep`, `tk link` |
+| **AGENTS.md** | Edit **only within** `<!-- OS-TK-START -->` / `<!-- OS-TK-END -->` markers |
+| **Subtasks** | Spawn `os-tk-worker` subtasks for parallel execution |
+| **Analysis** | Summarize, analyze, recommend |
 
-### ALLOWED
-- `openspec list`, `openspec show <id>`, `openspec validate <id>`
-- `tk ready`, `tk blocked`, `tk show <id>`, `tk query <filter>`
-- Summarize, analyze, and recommend
+## Forbidden Actions
 
-### FORBIDDEN
-- `tk start`, `tk close`, `tk add-note`, or any mutating `tk` command
-- Edit files, write code, run tests, or implement plans
-- Any bash commands that modify state
+- `tk start`, `tk close`, `tk add-note` (those belong to worker or /tk-done)
+- Editing code files (*.py, *.ts, *.js, *.go, etc.)
+- Editing config files (*.json, *.yaml, etc.) except AGENTS.md markers
+- Implementing features or writing application code
+- Archiving OpenSpec (handled by /tk-done)
+- Running tests
+
+## Ticket Design Guidelines
+
+When bootstrapping (/tk-bootstrap), create 3-8 chunky tickets:
+
+| Layer | Example Ticket |
+|-------|----------------|
+| Data | "Database schema for User entity" |
+| Backend | "User CRUD API endpoints" |
+| Frontend | "User management UI components" |
+| Integration | "Connect user forms to API" |
+| Tests | "E2E tests for user workflows" |
+| Docs | "API documentation for users" |
+
+## Parallel Worker Spawning
+
+For commands like `/tk-start T-001 T-002 --parallel 2`:
+1. Validate tickets are ready via `tk ready`
+2. Spawn one `os-tk-worker` subtask per ticket
+3. Each worker operates in its own worktree (if enabled)
+4. Report status when all workers complete
 
 ## Self-Check (Before Responding)
 
-Before responding to a view-only command, confirm you did NOT:
-- [ ] Suggest any implementation plan or coding steps
-- [ ] Propose running `tk start`, `tk add-note`, or `tk close`
-- [ ] Edit or propose edits to any files
+Before responding, confirm you did NOT:
+- [ ] Write or suggest implementation code
+- [ ] Propose running `tk start` or `tk close` directly
+- [ ] Edit code files or config files (except AGENTS.md markers)
 
-If you did any of the above, remove it and redirect to `/tk-start`.
+If you violated any, remove it and redirect to `/tk-start` or `/tk-done`.
 
 ## Worktree Awareness
 
-- `tk-queue` must exclude active worktrees (`.worktrees/<id>/`) from "ready to start".
-- When `useWorktrees` is false, there are no worktrees; all "ready" tickets are eligible.
+- Exclude active worktrees (`.worktrees/<id>/`) from "ready to start" lists
+- When `useWorktrees` is false, all "ready" tickets are eligible
 AGENT
 
   elif [[ "$role" == "worker" ]]; then
@@ -438,49 +658,6 @@ When implementation is complete:
 - Summarize what was implemented.
 - List any files created/modified.
 - Explicitly instruct the user to run `/tk-done <id> [change-id]`.
-AGENT
-
-  elif [[ "$role" == "bootstrapper" ]]; then
-    cat >> "$agent_file" << 'AGENT'
-
-You design and create **tk tickets** for OpenSpec changes using strong reasoning.
-
-## Core Rules
-
-- Use strong reasoning to design 3-8 chunky, deliverable-sized tickets.
-- Only run `tk create`, `tk dep`, `tk show`, `tk query` commands.
-- May update `AGENTS.md` **only within the `<!-- OS-TK-START -->` / `<!-- OS-TK-END -->` markers**.
-- Never edit code files, config files, or implement features.
-- Never run `tk start`, `tk close`, or `tk add-note`.
-
-## Command Precedence
-
-When invoked via a command (e.g., `/tk-bootstrap`):
-- The command markdown file is the HIGHEST PRIORITY contract.
-- If any conflict between this description and the command's contract:
-  - **The command contract wins. Always.**
-
-## Allowed Actions
-
-- `openspec list`, `openspec show <id>`, `openspec validate <id>`
-- `tk create`, `tk dep`, `tk show`, `tk query`
-- Read and analyze specs to design ticket structure
-- Update `AGENTS.md` OS-TK block (only within markers)
-
-## Forbidden Actions
-
-- `tk start`, `tk close`, `tk add-note`
-- Editing code files (*.py, *.ts, *.js, etc.)
-- Editing config files (*.json, *.yaml, etc.) except AGENTS.md markers
-- Implementing features or writing application code
-- Archiving OpenSpec
-
-## Output
-
-When bootstrapping is complete:
-- Summarize the epic and tasks created
-- List ticket IDs and their dependencies
-- Suggest next step: `/tk-queue` to see ready tickets
 AGENT
 
   elif [[ "$role" == "reviewer" ]]; then
@@ -569,12 +746,35 @@ ensure_gitignore_worktrees() {
 cmd_apply() {
   check_dependencies
   
+  local agents_input=""
+  
+  # Parse flags
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --agent|-a)
+        agents_input="$2"
+        shift 2
+        ;;
+      *)
+        echo "Unknown option for apply: $1"
+        usage
+        ;;
+    esac
+  done
+  
   local config
   config=$(load_config)
   
-  echo "Applying config to agents..."
+  # Get agents from flag, config, or default
+  if [[ -z "$agents_input" ]]; then
+    agents_input=$(get_config_value "$config" '.agents' "$DEFAULT_AGENTS")
+  fi
   
-  mkdir -p "$OPENCODE_DIR/agent"
+  local agents
+  agents=$(parse_agents "$agents_input")
+  
+  echo "Applying config to agents: $agents"
+  echo ""
   
   # Extract planner config
   local planner_model planner_temp planner_reasoning
@@ -594,23 +794,61 @@ cmd_apply() {
   reviewer_temp=$(get_config_value "$config" '.reviewer.temperature' '0')
   reviewer_reasoning=$(get_config_value "$config" '.reviewer.reasoningEffort' "$planner_reasoning")
   
-  # Rebuild agents
-  rebuild_agent_from_template "$OPENCODE_DIR/agent/os-tk-planner.md" "planner" "$planner_model" "$planner_temp" "$planner_reasoning"
-  rebuild_agent_from_template "$OPENCODE_DIR/agent/os-tk-worker.md" "worker" "$worker_model" "$worker_temp" "$worker_reasoning"
-  # Bootstrapper uses planner's model (strong reasoning) but has different permissions
-  rebuild_agent_from_template "$OPENCODE_DIR/agent/os-tk-bootstrapper.md" "bootstrapper" "$planner_model" "$planner_temp" "$planner_reasoning"
-  # Reviewer always generated (uses planner model by default)
-  rebuild_agent_from_template "$OPENCODE_DIR/agent/os-tk-reviewer.md" "reviewer" "$reviewer_model" "$reviewer_temp" "$reviewer_reasoning"
-  echo "  - Created/updated: $OPENCODE_DIR/agent/os-tk-reviewer.md (model: $reviewer_model)"
-  
-  echo "  - Created/updated: $OPENCODE_DIR/agent/os-tk-planner.md (model: $planner_model)"
-  echo "  - Created/updated: $OPENCODE_DIR/agent/os-tk-worker.md (model: $worker_model)"
-  echo "  - Created/updated: $OPENCODE_DIR/agent/os-tk-bootstrapper.md (model: $planner_model)"
+  # Apply to each selected agent platform
+  local IFS=','
+  for agent in $agents; do
+    apply_agent_platform "$agent" \
+      "$planner_model" "$planner_temp" "$planner_reasoning" \
+      "$worker_model" "$worker_temp" "$worker_reasoning" \
+      "$reviewer_model" "$reviewer_temp" "$reviewer_reasoning"
+  done
   
   ensure_gitignore_worktrees "$config"
   
   echo ""
   echo "Config applied."
+}
+
+# Apply config to a specific agent platform
+apply_agent_platform() {
+  local agent="$1"
+  local planner_model="$2" planner_temp="$3" planner_reasoning="$4"
+  local worker_model="$5" worker_temp="$6" worker_reasoning="$7"
+  local reviewer_model="$8" reviewer_temp="$9" reviewer_reasoning="${10}"
+  
+  local target_dir
+  target_dir=$(get_agent_dir "$agent")
+  
+  echo "Applying to $agent → $target_dir/"
+  
+  case "$agent" in
+    opencode)
+      mkdir -p "$target_dir/agent"
+      rebuild_agent_from_template "$target_dir/agent/os-tk-planner.md" "planner" "$planner_model" "$planner_temp" "$planner_reasoning"
+      rebuild_agent_from_template "$target_dir/agent/os-tk-worker.md" "worker" "$worker_model" "$worker_temp" "$worker_reasoning"
+      rebuild_agent_from_template "$target_dir/agent/os-tk-reviewer.md" "reviewer" "$reviewer_model" "$reviewer_temp" "$reviewer_reasoning"
+      echo "  - $target_dir/agent/os-tk-planner.md (model: $planner_model)"
+      echo "  - $target_dir/agent/os-tk-worker.md (model: $worker_model)"
+      echo "  - $target_dir/agent/os-tk-reviewer.md (model: $reviewer_model)"
+      ;;
+    claude)
+      # Claude Code uses different structure - agents are in agents/ dir
+      # Config is applied via settings.json, not embedded in agent files
+      echo "  Note: Claude Code agents configured via settings.json"
+      echo "  Agent files synced but model config not embedded"
+      ;;
+    droid)
+      # Factory/Droid uses droids/ dir with reasoningEffort in frontmatter
+      # Config would need to update the frontmatter in droid files
+      echo "  Note: Factory/Droid agents use frontmatter config"
+      echo "  Agent files synced but model config not auto-updated"
+      ;;
+    universal)
+      # Universal format - agents are in agents/ dir
+      echo "  Note: Universal agents synced, platform-agnostic format"
+      ;;
+  esac
+  echo ""
 }
 
 # =============================================================================
@@ -620,6 +858,7 @@ cmd_init() {
   check_dependencies
   
   local mode="worktree"  # default
+  local agents_input="$DEFAULT_AGENTS"
   
   # Parse flags
   while [[ $# -gt 0 ]]; do
@@ -632,12 +871,20 @@ cmd_init() {
         mode="simple"
         shift
         ;;
+      --agent|-a)
+        agents_input="$2"
+        shift 2
+        ;;
       *)
         echo "Unknown option: $1"
         usage
         ;;
     esac
   done
+  
+  # Validate agents early
+  local agents
+  agents=$(parse_agents "$agents_input")
   
   # Create config if missing
   if [[ ! -f "$CONFIG_FILE" ]]; then
@@ -647,6 +894,9 @@ cmd_init() {
   else
     echo "Config already exists: $CONFIG_FILE (preserving existing values)"
   fi
+  
+  # Store selected agents in config
+  jq --arg agents "$agents" '.agents = $agents' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
   
   # Apply mode
   if [[ "$mode" == "worktree" ]]; then
@@ -659,13 +909,13 @@ cmd_init() {
   
   echo ""
   
-  # Sync .opencode from template
-  cmd_sync
+  # Sync agent files from template
+  cmd_sync --agent "$agents"
   
   echo ""
   
   # Apply config to agents
-  cmd_apply
+  cmd_apply --agent "$agents"
   
   echo ""
   
@@ -675,10 +925,21 @@ cmd_init() {
   echo ""
   echo "os-tk initialized!"
   echo ""
+  echo "Selected agents: $agents"
+  echo ""
   echo "Next steps:"
   echo "  1. Review and edit .os-tk/config.json to customize models/settings"
   echo "  2. Run: os-tk apply  (to regenerate agents after config changes)"
-  echo "  3. Commit: git add .os-tk .opencode AGENTS.md .gitignore"
+  
+  # Build commit message based on selected agents
+  local dirs=".os-tk AGENTS.md .gitignore"
+  local IFS=','
+  for agent in $agents; do
+    local dir
+    dir=$(get_agent_dir "$agent")
+    dirs="$dirs $dir"
+  done
+  echo "  3. Commit: git add $dirs"
   echo ""
 }
 
@@ -712,24 +973,37 @@ os-tk — OpenSpec + Ticket workflow CLI
 Usage: os-tk <command> [options]
 
 Commands:
-  init [--worktree|--simple]  Initialize project (sync + apply + update AGENTS.md)
-  sync                        Download .opencode/** from templateRepo@templateRef
-  apply                       Re-apply config to agents (no network, no AGENTS.md)
-  version                     Show os-tk version and project templateRef
+  init [options]          Initialize project (sync + apply + update AGENTS.md)
+  sync [options]          Download agent files from templateRepo@templateRef
+  apply [options]         Re-apply config to agents (no network, no AGENTS.md)
+  version                 Show os-tk version and project templateRef
+
+Agent Platforms:
+  opencode                OpenCode format (.opencode/) - default
+  claude                  Claude Code format (.claude/)
+  droid                   Factory/Droid format (.factory/)
+  universal               Universal format (.agent/)
+  all                     All platforms
 
 Options:
-  --version                   Show version only
-  --help                      Show this help
+  --agent, -a <platforms> Comma-separated agent platforms (default: opencode)
+  --worktree              Enable worktree mode for parallel execution (default)
+  --simple                Disable worktrees, single working tree
+  --version               Show version only
+  --help                  Show this help
 
 Config:
   Per-project config is stored in: .os-tk/config.json
   Set templateRef to a tag (e.g., "v1.0.0") or "latest" for newest release.
 
 Examples:
-  os-tk init                  # First-time setup
-  os-tk init --simple         # Initialize without worktrees
-  os-tk sync                  # Update .opencode from template
-  os-tk apply                 # Regenerate agents after editing config
+  os-tk init                              # Initialize with OpenCode only
+  os-tk init --agent opencode,claude      # Initialize for OpenCode + Claude Code
+  os-tk init --agent all                  # Initialize for all platforms
+  os-tk init --simple --agent claude      # Claude Code without worktrees
+  os-tk sync --agent opencode,droid       # Update OpenCode + Factory files
+  os-tk apply                             # Regenerate agents (uses config)
+  os-tk apply --agent claude              # Regenerate Claude agents only
 
 EOF
   exit 0
@@ -747,10 +1021,12 @@ main() {
       cmd_init "$@"
       ;;
     sync)
-      cmd_sync
+      shift
+      cmd_sync "$@"
       ;;
     apply)
-      cmd_apply
+      shift
+      cmd_apply "$@"
       ;;
     version)
       cmd_version
