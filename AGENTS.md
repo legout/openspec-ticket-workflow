@@ -42,9 +42,20 @@ Call these agents manually to get expert guidance at any stage. They can researc
 
 ## Review Automation
 
-- `/tk-review` analyzes merge commits against OpenSpec specs
+- `/tk-review <id>` analyzes merge commits against OpenSpec specs
 - Creates linked fix tickets (non-blocking) for issues found
-- Configure via `reviewer` section in `config.json`
+- **Global-style flags** (OpenCode multi-model mode):
+  - `--ultimate`: Run all 4 role-based scouts (fast-sanity, standard, deep, second-opinion) + STRONG aggregator
+  - `--fast`: Run only fast-sanity role scout
+  - `--standard`: Run only standard role scout (default)
+  - `--deep`: Run only deep role scout
+  - `--seco`: Run only second-opinion role scout
+  - `--scouts ID,ID`: Manual scout selection (highest precedence)
+  - `--working-tree`: Review unmerged changes against base ref
+  - `--base <ref>`: Base ref for working-tree mode
+- Flag precedence: `--scouts` > reviewer flags > adaptive defaults
+- One reviewer per role enforced by `os-tk apply` validation
+- Configure scouts and models via `reviewer.scouts[]` in `config.json`
 - `/tk-run` enables fully autonomous operation (Ralph mode)
 
 ## Parallel Execution

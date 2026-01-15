@@ -36,10 +36,35 @@ Based on \`reviewer.adaptive\` config:
   - Default scouts: \`grok\`, \`gpt52\`, \`opus45\`.
 
 ### Manual Overrides
-- \`--all-scouts\`: Run all configured scouts.
-- \`--scouts ID,ID\`: Run specific subset.
-- \`--no-adaptive\`: Skip heuristic, use LARGE/STRONG defaults.
-- \`--force-strong\` / \`--force-fast\`: Override aggregator choice.
+
+- `--all-scouts`: Run all configured scouts.
+- `--scouts ID,ID`: Run specific subset.
+- `--no-adaptive`: Skip heuristic, use LARGE/STRONG defaults.
+- `--force-strong` / `--force-fast`: Override aggregator choice.
+
+### Global-Style Reviewer Flags
+
+These flags select reviewers by **role** (from `reviewer.scouts[]` config):
+
+- `--ultimate`: Run all 4 role-based scouts (fast-sanity, standard, deep, second-opinion) + **STRONG aggregator**.
+- `--fast`: Run only the first scout with `role: "fast-sanity"`.
+- `--standard`: Run only the first scout with `role: "standard"`.
+- `--deep`: Run only the first scout with `role: "deep"`.
+- `--seco`: Run only the first scout with `role: "second-opinion"`.
+
+**Precedence rules (highest to lowest):**
+1. `--scouts ID,ID` (manual scout selection, bypasses roles)
+2. Global-style flags (`--ultimate`, `--fast`, `--deep`, `--seco`, `--standard`)
+3. Adaptive complexity-based selection (default when no flags)
+
+**Role mapping:**
+- Flags select scouts by **role** from `config.json` / `.os-tk/config.json` → `reviewer.scouts[]`.
+- One reviewer per role enforced by `os-tk apply` validation.
+- If a requested role is missing from config, error with clear message.
+
+**Ultimate mode behavior:**
+- `--ultimate` ⇒ always uses STRONG aggregator (regardless of diff size/risk).
+- `--ultimate` + `--force-fast` ⇒ conflict error (mutually exclusive).
 
 ## Step 4: Delegate
 
