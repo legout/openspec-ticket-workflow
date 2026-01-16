@@ -1515,14 +1515,14 @@ apply_agent_platform() {
         local count
         count=$(echo "$scouts_json" | jq '. | length')
         for ((i=0; i<count; i++)); do
-          local scout id model temp reasoning
+          local scout role model temp reasoning
           scout=$(echo "$scouts_json" | jq -c ".[$i]")
-          id=$(echo "$scout" | jq -r '.id')
+          role=$(echo "$scout" | jq -r '.role')
           model=$(echo "$scout" | jq -r '.model')
           temp=$(echo "$scout" | jq -r '.temperature // 0')
           reasoning=$(echo "$scout" | jq -r '.reasoningEffort // "none"')
-          rebuild_scout_from_template "$PI_SCOUT_DIR/os-tk-reviewer-scout-${id}.md" "$id" "$model" "$temp" "$reasoning"
-          echo "    [ok] os-tk-reviewer-scout-${id}.md"
+          rebuild_scout_from_template "$PI_SCOUT_DIR/os-tk-reviewer-scout-${role}.md" "$role" "$model" "$temp" "$reasoning"
+          echo "    [ok] os-tk-reviewer-scout-${role}.md"
         done
       fi
       
