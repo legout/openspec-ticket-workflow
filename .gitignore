@@ -15,3 +15,5 @@ REFACTORING_PLAN*.md
 opencode/command/openspec-*.md
 .opencode/
 .pi/
+.factory/
+.claude/
