@@ -67,5 +67,5 @@
       }
     }
   },
-  "agents": "pi"
+  "agents": "opencode,claude,factory,pi"
 }
