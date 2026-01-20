@@ -18,18 +18,27 @@
   },
   "worker": {
     "model": "zai-coding-plan/glm-4.7",
-    "fallbackModels": ["minimax/MiniMax-M2.1"],
+    "fallbackModels": [
+      "minimax/MiniMax-M2.1"
+    ],
     "reasoningEffort": "none",
     "temperature": 0.75
   },
   "reviewer": {
     "autoTrigger": false,
     "policy": "gate",
-    "blockSeverities": ["error"],
+    "blockSeverities": [
+      "error"
+    ],
     "blockMinConfidence": 80,
-    "followupSeverities": ["warning"],
+    "followupSeverities": [
+      "warning"
+    ],
     "followupMinConfidence": 60,
-    "skipTags": ["no-review", "wip"],
+    "skipTags": [
+      "no-review",
+      "wip"
+    ],
     "autoRerunOnDone": false,
     "roles": {
       "bug-footgun": {
@@ -58,5 +67,5 @@
       }
     }
   },
-  "agents": "opencode,claude,factory,pi"
+  "agents": "pi"
 }
